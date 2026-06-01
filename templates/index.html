@@ -61,7 +61,23 @@
                 </div>
             </div>
 
+            <div class="control-group">
+                <span class="control-label">Nombre</span>
+                <div class="segmented" id="namingToggle">
+                    <button class="seg is-active" data-naming="youtube">YouTube</button>
+                    <button class="seg" data-naming="artist_title">Artista · Título</button>
+                    <button class="seg" data-naming="artist_album_title">Artista · Álbum · Título</button>
+                </div>
+            </div>
+
             <button class="ghost-btn" id="selectAllBtn">Seleccionar todo</button>
+
+            <div class="control-row-full">
+                <span class="control-label">Carpeta</span>
+                <input type="text" id="destDir" class="control-input"
+                       value="{{ default_dir }}" placeholder="{{ default_dir }}"
+                       autocomplete="off" spellcheck="false">
+            </div>
         </section>
 
         <!-- Resultados -->

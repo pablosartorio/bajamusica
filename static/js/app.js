@@ -8,6 +8,7 @@ const state = {
     selected: new Set(),    // ids seleccionados
     format: "mp3",
     quality: "high",
+    naming: "youtube",
     pollTimer: null,
 };
 
@@ -18,6 +19,8 @@ const el = {
     controls:      document.getElementById("controls"),
     formatToggle:  document.getElementById("formatToggle"),
     qualityToggle: document.getElementById("qualityToggle"),
+    namingToggle:  document.getElementById("namingToggle"),
+    destDir:       document.getElementById("destDir"),
     selectAllBtn:  document.getElementById("selectAllBtn"),
     results:       document.getElementById("results"),
     placeholder:   document.getElementById("placeholder"),
@@ -151,8 +154,10 @@ async function startDownload() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 items,
-                format: state.format,
-                quality: state.quality,
+                format:   state.format,
+                quality:  state.quality,
+                naming:   state.naming,
+                dest_dir: el.destDir.value.trim(),
             }),
         });
         const data = await res.json();
@@ -211,6 +216,7 @@ const STATE_LABELS = {
     queued:      { txt: "En cola",      cls: "" },
     downloading: { txt: "Bajando",      cls: "" },
     converting:  { txt: "Convirtiendo", cls: "s-convert" },
+    tagging:     { txt: "Etiquetando",  cls: "s-convert" },
     done:        { txt: "Listo",        cls: "s-done" },
     error:       { txt: "Error",        cls: "s-error" },
 };
@@ -289,8 +295,9 @@ el.closeProgress.addEventListener("click", () => {
     clearInterval(state.pollTimer);
 });
 
-setupToggle(el.formatToggle, "format");
+setupToggle(el.formatToggle,  "format");
 setupToggle(el.qualityToggle, "quality");
+setupToggle(el.namingToggle,  "naming");
 
 // foco inicial en el buscador
 el.query.focus();

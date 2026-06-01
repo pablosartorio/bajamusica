@@ -11,6 +11,8 @@ Endpoints:
 import threading
 import webbrowser
 
+from pathlib import Path
+
 from flask import Flask, jsonify, render_template, request
 
 import config
@@ -23,7 +25,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", default_dir=str(config.DOWNLOAD_DIR))
 
 
 @app.route("/search")
@@ -41,21 +43,27 @@ def search():
 @app.route("/download", methods=["POST"])
 def download():
     data = request.get_json(force=True, silent=True) or {}
-    items = data.get("items", [])
-    fmt = data.get("format", "mp3")
+    items   = data.get("items", [])
+    fmt     = data.get("format", "mp3")
     quality = data.get("quality", "high")
+    naming  = data.get("naming", "youtube")
+
+    raw_dir = data.get("dest_dir", "").strip()
+    dest_dir = Path(raw_dir).expanduser() if raw_dir else config.DOWNLOAD_DIR
 
     if not items:
         return jsonify({"error": "No se seleccionó ningún item"}), 400
     if fmt not in config.SUPPORTED_FORMATS:
         return jsonify({"error": f"Formato no soportado: {fmt}"}), 400
+    if naming not in config.NAMING_SCHEMES:
+        naming = "youtube"
 
     job_id = jobs_mod.create_job(items)
     thread = threading.Thread(
         target=download_mod.run_job,
         args=(
             job_id, items, fmt, quality,
-            config.DOWNLOAD_DIR, config.AUDIO_QUALITY, config.VIDEO_QUALITY,
+            dest_dir, config.AUDIO_QUALITY, config.VIDEO_QUALITY, naming,
         ),
         daemon=True,
     )

@@ -5,10 +5,11 @@ Recibe config por parámetro (no importa config directamente) para mantener este
 módulo desacoplado y testeable. La app web le inyecta las rutas y mapas de calidad.
 """
 import os
+from pathlib import Path
 
 import yt_dlp
 
-from . import jobs
+from . import jobs, metadata
 
 
 def _make_progress_hook(job_id: str, video_id: str):
@@ -56,7 +57,7 @@ def _build_opts(fmt, quality, download_dir, audio_map, video_map, hook):
     return opts
 
 
-def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map):
+def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map, naming="youtube"):
     """
     Procesa todos los items de una tarea, secuencialmente.
 
@@ -75,7 +76,19 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map):
         try:
             jobs.update_item(job_id, vid, state="downloading", percent=0)
             with yt_dlp.YoutubeDL(opts) as ydl:
-                ydl.download([url])
+                info = ydl.extract_info(url, download=True)
+
+            if naming != "youtube":
+                jobs.update_item(job_id, vid, state="tagging", percent=99)
+                filepath = _get_filepath(info)
+                if filepath and filepath.exists():
+                    meta = metadata.lookup(
+                        item.get("title", ""),
+                        item.get("channel", ""),
+                    )
+                    if meta:
+                        metadata.apply(filepath, meta, naming, fmt)
+
             jobs.update_item(job_id, vid, state="done", percent=100)
         except Exception as exc:  # noqa: BLE001 — queremos capturar cualquier fallo del item
             jobs.update_item(
@@ -84,3 +97,13 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map):
             )
 
     jobs.set_overall(job_id, "done")
+
+
+def _get_filepath(info: dict | None) -> Path | None:
+    """Extrae el path del archivo final a partir del info dict de yt-dlp."""
+    if not info:
+        return None
+    rdls = info.get("requested_downloads") or []
+    if rdls and rdls[0].get("filepath"):
+        return Path(rdls[0]["filepath"])
+    return None

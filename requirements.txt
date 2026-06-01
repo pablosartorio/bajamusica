@@ -1,2 +1,4 @@
 flask>=3.0
 yt-dlp>=2024.0
+musicbrainzngs>=0.7
+mutagen>=1.47
