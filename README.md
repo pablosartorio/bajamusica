@@ -58,6 +58,26 @@ yt-downloader/
 
 ---
 
+## Flujo de uso
+
+```mermaid
+flowchart TD
+    U([Usuario]) -->|escribe búsqueda| B[POST /search]
+    B --> S[core/search.py\nbusca en YouTube]
+    S -->|lista de resultados| R[Renderiza resultados\nen el navegador]
+    R -->|tilda videos + elige formato| D[POST /download]
+    D --> J[core/jobs.py\ncrea job_id]
+    J --> T[Thread de descarga\ncore/download.py]
+    T -->|yt-dlp descarga| YT[(YouTube)]
+    T -->|ffmpeg convierte| F[MP3 / MP4]
+    F --> M[~/Music/YT-Downloads]
+    U -->|polling cada 600ms| P[GET /progress/job_id]
+    P --> J
+    J -->|estado + progreso| U
+```
+
+---
+
 ## Decisiones de diseño (para que escale)
 
 - **Backend desacoplado del frontend.** El paquete `core` no sabe nada de
