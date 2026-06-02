@@ -13,6 +13,7 @@
     <div class="grain"></div>
 
     <header class="masthead">
+        <button class="history-trigger" id="historyBtn" title="Ver historial de descargas">Historial</button>
         <div class="wordmark">
             <span class="wordmark__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -77,8 +78,27 @@
                 <input type="text" id="destDir" class="control-input"
                        value="{{ default_dir }}" placeholder="{{ default_dir }}"
                        autocomplete="off" spellcheck="false">
+                <button class="browse-btn" id="browseBtn" title="Seleccionar carpeta">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </button>
             </div>
         </section>
+
+        <!-- Banner de playlist -->
+        <div class="playlist-banner" id="playlistBanner" hidden>
+            <svg class="playlist-banner__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            <span class="playlist-banner__title" id="playlistTitle"></span>
+            <span class="playlist-banner__count" id="playlistCount"></span>
+        </div>
 
         <!-- Resultados -->
         <section class="results" id="results"></section>
@@ -103,6 +123,15 @@
         </div>
         <div class="progress-list" id="progressList"></div>
         <p class="progress-panel__dest" id="destNote"></p>
+    </aside>
+
+    <!-- Panel de historial -->
+    <aside class="history-panel" id="historyPanel" hidden>
+        <div class="history-panel__head">
+            <h2>Historial</h2>
+            <button class="close-btn" id="closeHistory" aria-label="Cerrar">×</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
     </aside>
 
     <!-- Toast de error -->

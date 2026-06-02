@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Entorno virtual
+.venv/
+
+# Datos locales de la app
+history.json
+
+# Sistema operativo / editores
+.DS_Store
+*.swp

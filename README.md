@@ -1,18 +1,22 @@
 # Sonido — YouTube Downloader
 
-Interfaz web local para buscar videos en YouTube, elegir cuáles bajar, y
-guardarlos como MP3 o MP4 en tu carpeta de música. Pensado para correr en
-Linux, en `localhost`, sin que salga nada a internet salvo las requests a
-YouTube.
+Interfaz web local para buscar videos en YouTube, cargar playlists completas,
+elegir cuáles bajar, y guardarlos como MP3 o MP4 en tu carpeta de música.
+Pensado para correr en Linux (y Windows), en `localhost`, sin que salga
+nada a internet salvo las requests a YouTube.
 
 ---
 
 ## Requisitos
 
 - **Python 3.10+**
-- **ffmpeg** — para la conversión de audio/video:
+- **ffmpeg** — para la conversión de audio:
   ```bash
   sudo apt install ffmpeg
+  ```
+- **tkinter** — para el selector nativo de carpeta (ya incluido en Python de Windows; en Linux):
+  ```bash
+  sudo apt install python3-tk
   ```
 
 ## Uso
@@ -27,25 +31,34 @@ chmod +x run.sh      # solo la primera vez
 El script crea un entorno virtual, instala las dependencias, y arranca el
 servidor. El navegador se abre solo en `http://127.0.0.1:5000`.
 
-1. Escribí una búsqueda (ej: *canciones de Pescetti*).
+### Búsqueda normal
+
+1. Escribí una búsqueda (ej: *canciones de Pescetti*) y presioná **Buscar**.
 2. Tildá los videos que querés.
-3. Elegí formato (MP3 / MP4) y calidad.
+3. Elegí calidad, esquema de nombre y carpeta destino.
 4. Click en **Descargar** — vas a ver el progreso de cada archivo.
 
-Los archivos quedan en `~/Music/YT-Downloads`.
+### Bajar una playlist completa
+
+1. Pegá la URL de la playlist de YouTube directamente en el buscador
+   (ej: `https://www.youtube.com/playlist?list=PLxxxxxx`).
+2. La app la expande automáticamente y selecciona todos los tracks.
+3. Revisá la selección si querés, luego **Descargar**.
 
 ---
 
 ## Estructura
 
 ```
-yt-downloader/
+bajamusica/
 ├── app.py                 # servidor Flask + rutas (capa fina)
 ├── config.py              # toda la config ajustable
 ├── core/                  # lógica de negocio, independiente de Flask
 │   ├── search.py          #   búsqueda en YouTube
 │   ├── download.py        #   descarga + conversión
-│   ├── jobs.py            #   registro de estado de tareas
+│   ├── playlist.py        #   expansión de playlists completas
+│   ├── jobs.py            #   estado de tareas + historial en disco
+│   ├── metadata.py        #   lookup y escritura de etiquetas vía MusicBrainz
 │   └── util.py            #   helpers
 ├── templates/
 │   └── index.html         # la UI
@@ -63,22 +76,28 @@ yt-downloader/
 ```mermaid
 flowchart TD
     U([Usuario]) -->|escribe búsqueda| B[POST /search]
+    U -->|pega URL de playlist| PL[GET /expand_playlist]
     B --> S[core/search.py\nbusca en YouTube]
-    S -->|lista de resultados| R[Renderiza resultados\nen el navegador]
-    R -->|tilda videos + elige formato| D[POST /download]
+    PL --> PS[core/playlist.py\nextrae entradas flat]
+    S & PS -->|lista de resultados| R[Renderiza resultados\nen el navegador]
+    R -->|tilda videos + elige opciones| D[POST /download]
     D --> J[core/jobs.py\ncrea job_id]
     J --> T[Thread de descarga\ncore/download.py]
     T -->|yt-dlp descarga| YT[(YouTube)]
-    T -->|ffmpeg convierte| F[MP3 / MP4]
-    F --> M[~/Music/YT-Downloads]
+    T -->|ffmpeg convierte| F[MP3]
+    F --> M[carpeta destino]
+    T -->|job done| H[core/jobs.py\npersiste en historial]
+    H --> HF[~/.local/share/bajamusica/history.json]
     U -->|polling cada 600ms| P[GET /progress/job_id]
     P --> J
     J -->|estado + progreso| U
+    U -->|abre historial| GH[GET /history]
+    U -->|selecciona carpeta| GB[GET /browse_dir\ntkinter dialog]
 ```
 
 ---
 
-## Decisiones de diseño (para que escale)
+## Decisiones de diseño
 
 - **Backend desacoplado del frontend.** El paquete `core` no sabe nada de
   Flask. Podés reusarlo desde una CLI, una API distinta, o tests, sin tocar
@@ -86,20 +105,28 @@ flowchart TD
   delegan.
 
 - **Config centralizada.** Todo lo ajustable (carpeta destino, puerto,
-  calidades, límites de búsqueda) vive en `config.py`. No hay valores mágicos
-  desperdigados.
+  calidades, límites de búsqueda, ruta del historial) vive en `config.py`.
+  No hay valores mágicos desperdigados.
 
-- **Estado de tareas aislado en `jobs.py`.** Hoy es un dict en memoria. El día
-  que quieras persistir el historial a disco o a una base de datos, ese es el
-  único módulo a reemplazar.
+- **Historial en disco.** `core/jobs.py` persiste cada descarga completada en
+  `~/.local/share/bajamusica/history.json` (máx. 500 entradas). La UI lo
+  muestra en un panel lateral accesible con el botón **Historial**.
+
+- **Selector nativo de carpeta.** El botón junto al campo "Carpeta" abre el
+  diálogo nativo del OS vía `tkinter.filedialog`. El mismo código funciona en
+  Linux y Windows sin cambios.
+
+- **Playlists vía flat-extract.** `core/playlist.py` usa yt-dlp en modo
+  `extract_flat` para obtener metadatos de toda la lista sin descargar nada.
+  El frontend detecta automáticamente si la query es una URL con `list=` y
+  desvía la request al endpoint correcto.
 
 - **Progreso por polling.** El frontend consulta `/progress/<job_id>` cada
-  600ms. Es más robusto y simple que WebSockets/SSE para un caso local, y deja
-  la puerta abierta a migrar a SSE después si hiciera falta.
+  600ms. Es más robusto y simple que WebSockets/SSE para un caso local.
 
 - **Descargas en thread aparte.** El servidor corre con `threaded=True`, así
-  el polling responde mientras la descarga avanza. Por ahora los items de una
-  tarea se procesan secuencialmente; paralelizarlos es un cambio acotado en
+  el polling responde mientras la descarga avanza. Los items de una tarea se
+  procesan secuencialmente; paralelizarlos es un cambio acotado en
   `core/download.py`.
 
 - **Frontend sin frameworks.** HTML + CSS + JS vanilla, una sola página. Cero
@@ -109,12 +136,10 @@ flowchart TD
 
 ## Ideas para extender
 
-- Selector de carpeta destino desde la UI.
-- Historial persistente de descargas.
-- Soporte de playlists completas.
-- Descargas en paralelo.
+- Descargas en paralelo (cambio acotado en `core/download.py`).
 - Más formatos (FLAC, WAV, etc.) — se agregan en `config.SUPPORTED_FORMATS`
   y `core/download.py`.
+- Re-descargar desde el historial con un click.
 
 ---
 

@@ -32,3 +32,6 @@ SUPPORTED_FORMATS = ("mp3", "mp4")
 
 # Esquemas de nomenclatura para los archivos descargados
 NAMING_SCHEMES = ("youtube", "artist_title", "artist_album_title")
+
+# Historial de descargas completadas
+HISTORY_FILE = Path.home() / ".local" / "share" / "bajamusica" / "history.json"

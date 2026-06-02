@@ -546,10 +546,173 @@ body {
     animation: pop 0.25s ease;
 }
 
+/* ── Botón Historial ────────────────────────────────────── */
+.history-trigger {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 7px 14px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+.history-trigger:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Botón Examinar carpeta ─────────────────────────────── */
+.browse-btn {
+    flex-shrink: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 9px;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: border-color 0.15s, color 0.15s;
+}
+.browse-btn:hover { border-color: var(--accent); color: var(--accent); }
+.browse-btn svg { width: 15px; height: 15px; }
+
+/* ── Banner de playlist ─────────────────────────────────── */
+.playlist-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: rgba(190, 242, 100, 0.06);
+    border: 1px solid rgba(190, 242, 100, 0.22);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    color: var(--accent);
+    animation: rise 0.3s ease;
+}
+.playlist-banner__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+}
+.playlist-banner__title {
+    font-weight: 600;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.playlist-banner__count { color: var(--muted); flex-shrink: 0; }
+
+/* ── Panel de historial ─────────────────────────────────── */
+.history-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 40;
+    width: 380px;
+    max-width: 90vw;
+    height: 100vh;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    animation: slideIn 0.28s ease;
+}
+
+.history-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 22px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.history-panel__head h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.hist-empty {
+    color: var(--faint);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 50px 0;
+}
+
+.hist-entry {
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+}
+
+.hist-entry__main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.hist-entry__label {
+    flex: 1;
+    font-size: 0.88rem;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hist-badge {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: 5px;
+}
+
+.hist-entry__meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 0.76rem;
+    color: var(--muted);
+}
+
+.hist-entry__date { flex-shrink: 0; }
+
+.hist-entry__dir {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--faint);
+    font-size: 0.72rem;
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 560px) {
     .controls { gap: 14px; }
     .ghost-btn { margin-left: 0; }
     .result__thumb { width: 92px; height: 54px; }
     .masthead { padding-top: 38px; }
+    .history-trigger { top: 14px; right: 16px; }
 }

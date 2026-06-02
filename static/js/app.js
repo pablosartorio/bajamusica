@@ -14,27 +14,54 @@ const state = {
 
 // ── Referencias al DOM ──────────────────────────────────────
 const el = {
-    query:         document.getElementById("query"),
-    searchBtn:     document.getElementById("searchBtn"),
-    controls:      document.getElementById("controls"),
-    formatToggle:  document.getElementById("formatToggle"),
-    qualityToggle: document.getElementById("qualityToggle"),
-    namingToggle:  document.getElementById("namingToggle"),
-    destDir:       document.getElementById("destDir"),
-    selectAllBtn:  document.getElementById("selectAllBtn"),
-    results:       document.getElementById("results"),
-    placeholder:   document.getElementById("placeholder"),
-    actionbar:     document.getElementById("actionbar"),
-    selectedCount: document.getElementById("selectedCount"),
-    downloadBtn:   document.getElementById("downloadBtn"),
-    progressPanel: document.getElementById("progressPanel"),
-    progressList:  document.getElementById("progressList"),
-    destNote:      document.getElementById("destNote"),
-    closeProgress: document.getElementById("closeProgress"),
-    toast:         document.getElementById("toast"),
+    query:          document.getElementById("query"),
+    searchBtn:      document.getElementById("searchBtn"),
+    controls:       document.getElementById("controls"),
+    formatToggle:   document.getElementById("formatToggle"),
+    qualityToggle:  document.getElementById("qualityToggle"),
+    namingToggle:   document.getElementById("namingToggle"),
+    destDir:        document.getElementById("destDir"),
+    browseBtn:      document.getElementById("browseBtn"),
+    selectAllBtn:   document.getElementById("selectAllBtn"),
+    results:        document.getElementById("results"),
+    placeholder:    document.getElementById("placeholder"),
+    playlistBanner: document.getElementById("playlistBanner"),
+    playlistTitle:  document.getElementById("playlistTitle"),
+    playlistCount:  document.getElementById("playlistCount"),
+    actionbar:      document.getElementById("actionbar"),
+    selectedCount:  document.getElementById("selectedCount"),
+    downloadBtn:    document.getElementById("downloadBtn"),
+    progressPanel:  document.getElementById("progressPanel"),
+    progressList:   document.getElementById("progressList"),
+    destNote:       document.getElementById("destNote"),
+    closeProgress:  document.getElementById("closeProgress"),
+    historyBtn:     document.getElementById("historyBtn"),
+    historyPanel:   document.getElementById("historyPanel"),
+    historyList:    document.getElementById("historyList"),
+    closeHistory:   document.getElementById("closeHistory"),
+    toast:          document.getElementById("toast"),
 };
 
 const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+// ── Utilidades ──────────────────────────────────────────────
+function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+}
+
+function isPlaylistUrl(q) {
+    try {
+        const url = new URL(q.trim());
+        return (
+            (url.hostname.includes("youtube.com") || url.hostname.includes("youtu.be")) &&
+            url.searchParams.has("list")
+        );
+    } catch {
+        return false;
+    }
+}
 
 // ── Búsqueda ────────────────────────────────────────────────
 async function runSearch() {
@@ -43,15 +70,42 @@ async function runSearch() {
 
     setLoading(true);
     try {
-        const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        if (data.error) {
-            showToast(`Error en la búsqueda: ${data.error}`);
-            return;
+        let results = [];
+        let playlistInfo = null;
+
+        if (isPlaylistUrl(q)) {
+            const res = await fetch(`/expand_playlist?url=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            if (data.error) {
+                showToast(`Error al cargar playlist: ${data.error}`);
+                return;
+            }
+            results = data.results || [];
+            playlistInfo = { title: data.title, count: results.length };
+        } else {
+            const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            if (data.error) {
+                showToast(`Error en la búsqueda: ${data.error}`);
+                return;
+            }
+            results = data.results || [];
         }
-        state.results = data.results || [];
+
+        state.results = results;
         state.selected.clear();
         renderResults();
+
+        if (playlistInfo) {
+            state.results.forEach((r) => state.selected.add(r.id));
+            document.querySelectorAll(".result").forEach((c) => c.classList.add("is-selected"));
+            el.selectAllBtn.textContent = "Deseleccionar todo";
+            showPlaylistBanner(playlistInfo.title, playlistInfo.count);
+        } else {
+            el.selectAllBtn.textContent = "Seleccionar todo";
+            hidePlaylistBanner();
+        }
+
         updateActionbar();
     } catch (err) {
         showToast("No se pudo conectar con el servidor.");
@@ -65,6 +119,17 @@ function setLoading(on) {
     el.searchBtn.disabled = on;
 }
 
+// ── Banner de playlist ──────────────────────────────────────
+function showPlaylistBanner(title, count) {
+    el.playlistTitle.textContent = title;
+    el.playlistCount.textContent = `${count} ${count === 1 ? "canción" : "canciones"}`;
+    el.playlistBanner.hidden = false;
+}
+
+function hidePlaylistBanner() {
+    el.playlistBanner.hidden = true;
+}
+
 // ── Render de resultados ────────────────────────────────────
 function renderResults() {
     el.results.innerHTML = "";
@@ -73,6 +138,7 @@ function renderResults() {
         el.placeholder.hidden = false;
         el.placeholder.querySelector("p").textContent = "No se encontraron resultados.";
         el.controls.hidden = true;
+        hidePlaylistBanner();
         return;
     }
 
@@ -143,6 +209,21 @@ function updateActionbar() {
     }
 }
 
+// ── Selector de carpeta ─────────────────────────────────────
+async function browseDir() {
+    try {
+        const res = await fetch("/browse_dir");
+        const data = await res.json();
+        if (data.path) {
+            el.destDir.value = data.path;
+        } else if (data.error) {
+            showToast(data.error);
+        }
+    } catch {
+        showToast("No se pudo abrir el selector de carpeta.");
+    }
+}
+
 // ── Descarga ────────────────────────────────────────────────
 async function startDownload() {
     const items = state.results.filter((r) => state.selected.has(r.id));
@@ -174,8 +255,12 @@ async function startDownload() {
 
 // ── Panel de progreso ───────────────────────────────────────
 function openProgressPanel(items) {
+    el.historyPanel.hidden = true;
     el.progressPanel.hidden = false;
     el.progressList.innerHTML = "";
+
+    const dest = el.destDir.value.trim() || el.destDir.placeholder;
+    el.destNote.textContent = dest ? `Guardando en: ${dest}` : "";
 
     items.forEach((item) => {
         const row = document.createElement("div");
@@ -234,7 +319,6 @@ function renderProgress(job) {
         stateEl.textContent = label.txt;
         stateEl.className = `prog-item__state ${label.cls}`;
 
-        // barra
         fill.classList.remove("is-done", "is-error", "is-indeterminate");
         if (item.state === "done") {
             fill.classList.add("is-done");
@@ -248,11 +332,62 @@ function renderProgress(job) {
             fill.style.width = `${item.percent}%`;
         }
 
-        // error
         if (item.state === "error" && item.error) {
             errEl.hidden = false;
             errEl.textContent = item.error;
         }
+    });
+}
+
+// ── Panel de historial ──────────────────────────────────────
+async function openHistory() {
+    el.progressPanel.hidden = true;
+    el.historyList.innerHTML = '<p class="hist-empty">Cargando...</p>';
+    el.historyPanel.hidden = false;
+    try {
+        const res = await fetch("/history");
+        const data = await res.json();
+        renderHistory(data.entries || []);
+    } catch (err) {
+        el.historyList.innerHTML =
+            `<p class="hist-empty">Error al cargar el historial: ${escapeHtml(String(err))}</p>`;
+    }
+}
+
+function renderHistory(entries) {
+    el.historyList.innerHTML = "";
+    if (!entries.length) {
+        el.historyList.innerHTML =
+            '<p class="hist-empty">No hay descargas registradas aún.</p>';
+        return;
+    }
+
+    entries.forEach((entry) => {
+        const div = document.createElement("div");
+        div.className = "hist-entry";
+
+        const date = new Date(entry.created * 1000);
+        const dateStr = date.toLocaleDateString("es-AR", {
+            day: "numeric", month: "short", year: "numeric",
+        });
+        const doneCount = entry.items.filter((it) => it.state === "done").length;
+        const total = entry.items.length;
+        const label =
+            total === 1
+                ? escapeHtml(entry.items[0].title)
+                : `${doneCount} de ${total} ${total === 1 ? "archivo" : "archivos"}`;
+
+        div.innerHTML = `
+            <div class="hist-entry__main">
+                <span class="hist-entry__label">${label}</span>
+                <span class="hist-badge">${escapeHtml(entry.format.toUpperCase())}</span>
+            </div>
+            <div class="hist-entry__meta">
+                <span class="hist-entry__date">${dateStr}</span>
+                <span class="hist-entry__dir" title="${escapeHtml(entry.dest_dir)}">${escapeHtml(entry.dest_dir)}</span>
+            </div>
+        `;
+        el.historyList.appendChild(div);
     });
 }
 
@@ -276,13 +411,6 @@ function showToast(msg) {
     toastTimer = setTimeout(() => { el.toast.hidden = true; }, 4500);
 }
 
-// ── Util ────────────────────────────────────────────────────
-function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str ?? "";
-    return div.innerHTML;
-}
-
 // ── Eventos ─────────────────────────────────────────────────
 el.searchBtn.addEventListener("click", runSearch);
 el.query.addEventListener("keydown", (e) => {
@@ -290,6 +418,9 @@ el.query.addEventListener("keydown", (e) => {
 });
 el.selectAllBtn.addEventListener("click", selectAll);
 el.downloadBtn.addEventListener("click", startDownload);
+el.browseBtn.addEventListener("click", browseDir);
+el.historyBtn.addEventListener("click", openHistory);
+el.closeHistory.addEventListener("click", () => { el.historyPanel.hidden = true; });
 el.closeProgress.addEventListener("click", () => {
     el.progressPanel.hidden = true;
     clearInterval(state.pollTimer);
@@ -299,5 +430,4 @@ setupToggle(el.formatToggle,  "format");
 setupToggle(el.qualityToggle, "quality");
 setupToggle(el.namingToggle,  "naming");
 
-// foco inicial en el buscador
 el.query.focus();
