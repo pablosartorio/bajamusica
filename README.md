@@ -88,7 +88,7 @@ flowchart TD
     F --> M[carpeta destino]
     T -->|job done| H[core/jobs.py\npersiste en historial]
     H --> HF[~/.local/share/bajamusica/history.json]
-    U -->|polling cada 600ms| P[GET /progress/job_id]
+    U -->|polling cada 500ms| P[GET /progress/job_id]
     P --> J
     J -->|estado + progreso| U
     U -->|abre historial| GH[GET /history]
@@ -110,7 +110,7 @@ flowchart TD
 
 - **Historial en disco.** `core/jobs.py` persiste cada descarga completada en
   `~/.local/share/bajamusica/history.json` (máx. 500 entradas). La UI lo
-  muestra en un panel lateral accesible con el botón **Historial**.
+  muestra en un modal accesible con el botón **Historial** en la barra superior.
 
 - **Selector nativo de carpeta.** El botón junto al campo "Carpeta" abre el
   diálogo nativo del OS vía `tkinter.filedialog`. El mismo código funciona en
@@ -122,7 +122,11 @@ flowchart TD
   desvía la request al endpoint correcto.
 
 - **Progreso por polling.** El frontend consulta `/progress/<job_id>` cada
-  600ms. Es más robusto y simple que WebSockets/SSE para un caso local.
+  500ms. Es más robusto y simple que WebSockets/SSE para un caso local. El
+  progreso se muestra en un panel inline (no tapa los resultados), con una barra
+  global y, por archivo, barra sólida + velocidad/ETA/tamaño. El polling es
+  independiente del panel: ocultarlo no detiene el seguimiento, y el botón
+  **Descargas** lo vuelve a mostrar.
 
 - **Descargas en thread aparte.** El servidor corre con `threaded=True`, así
   el polling responde mientras la descarga avanza. Los items de una tarea se

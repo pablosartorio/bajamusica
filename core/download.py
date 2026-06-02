@@ -20,11 +20,24 @@ def _make_progress_hook(job_id: str, video_id: str):
             total = d.get("total_bytes") or d.get("total_bytes_estimate")
             downloaded = d.get("downloaded_bytes", 0)
             pct = int(downloaded * 100 / total) if total else 0
-            # tope en 99: el 100 lo marcamos al terminar la conversión
-            jobs.update_item(job_id, video_id, state="downloading", percent=min(pct, 99))
+            # tope en 99: el 100 lo marcamos al terminar la conversión.
+            # Pasamos speed/eta/bytes para que la UI muestre progreso rico.
+            jobs.update_item(
+                job_id, video_id,
+                state="downloading",
+                percent=min(pct, 99),
+                speed=d.get("speed"),          # bytes/s (o None si no se conoce)
+                eta=d.get("eta"),              # segundos restantes (o None)
+                downloaded=downloaded,
+                total=total,
+            )
         elif status == "finished":
             # bajó el archivo; ahora ffmpeg lo convierte
-            jobs.update_item(job_id, video_id, state="converting", percent=99)
+            jobs.update_item(
+                job_id, video_id,
+                state="converting", percent=99,
+                speed=None, eta=None,
+            )
     return hook
 
 
@@ -78,22 +91,28 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map, nam
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=True)
 
-            if naming != "youtube":
+            final_path = _get_filepath(info)
+            if naming != "youtube" and final_path and final_path.exists():
                 jobs.update_item(job_id, vid, state="tagging", percent=99)
-                filepath = _get_filepath(info)
-                if filepath and filepath.exists():
-                    meta = metadata.lookup(
-                        item.get("title", ""),
-                        item.get("channel", ""),
-                    )
-                    if meta:
-                        metadata.apply(filepath, meta, naming, fmt)
+                meta = metadata.lookup(
+                    item.get("title", ""),
+                    item.get("channel", ""),
+                )
+                if meta:
+                    # apply() puede renombrar: nos quedamos con el path final.
+                    final_path = metadata.apply(final_path, meta, naming, fmt)
 
-            jobs.update_item(job_id, vid, state="done", percent=100)
+            jobs.update_item(
+                job_id, vid,
+                state="done", percent=100,
+                speed=None, eta=None,
+                filename=final_path.name if final_path else None,
+            )
         except Exception as exc:  # noqa: BLE001 — queremos capturar cualquier fallo del item
             jobs.update_item(
                 job_id, vid,
-                state="error", percent=0, error=str(exc)[:200],
+                state="error", percent=0, speed=None, eta=None,
+                error=str(exc)[:200],
             )
 
     jobs.set_overall(job_id, "done")

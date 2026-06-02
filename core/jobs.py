@@ -41,6 +41,11 @@ def create_job(
                     "percent": 0,
                     "state": "queued",
                     "error": None,
+                    "speed": None,       # bytes/s mientras baja
+                    "eta": None,         # segundos restantes
+                    "downloaded": 0,     # bytes bajados
+                    "total": None,       # bytes totales (si yt-dlp los conoce)
+                    "filename": None,    # nombre final del archivo guardado
                 }
                 for it in items
             ],
@@ -110,6 +115,7 @@ def _save_to_history(job: dict) -> None:
                     "title": it["title"],
                     "state": it["state"],
                     "error": it.get("error"),
+                    "filename": it.get("filename"),
                 }
                 for it in job["items"]
             ],
