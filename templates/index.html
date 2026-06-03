@@ -1,211 +1,175 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sonido · YouTube Downloader</title>
-    <meta name="theme-color" content="#0a0a0f">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sonido · Cassette</title>
+  <meta name="theme-color" content="#f1e7d3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="aurora" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
 
-    <!-- ── Barra superior ─────────────────────────────────────── -->
-    <header class="topbar">
-        <div class="brand">
-            <span class="brand__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 18V5l12-2v13"></path>
-                    <circle cx="6" cy="18" r="3"></circle>
-                    <circle cx="18" cy="16" r="3"></circle>
-                </svg>
-            </span>
-            <span class="brand__name">Sonido</span>
-        </div>
+  <!-- ── Topbar ────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark">
+        <canvas class="brand__cassette" id="brandCassette" width="30" height="19"></canvas>
+      </span>
+      <span class="brand__name">Sonido</span>
+      <span class="brand__tag">cassette</span>
+    </div>
+    <div class="tools">
+      <button class="tool" id="histTool">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><path d="M12 7v5l4 2"></path></svg>
+        <span>HISTORIAL</span>
+      </button>
+    </div>
+  </header>
 
-        <div class="topbar__tools">
-            <button class="tool-btn" id="downloadsBtn" hidden>
-                <svg class="tool-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span class="tool-btn__label">Descargas</span>
-            </button>
+  <!-- ── Contenido ─────────────────────────────────────────────── -->
+  <main class="shell">
 
-            <button class="tool-btn" id="historyBtn" title="Ver historial de descargas">
-                <svg class="tool-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3v5h5"></path>
-                    <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
-                    <path d="M12 7v5l4 2"></path>
-                </svg>
-                <span class="tool-btn__label">Historial</span>
-            </button>
-        </div>
-    </header>
+    <!-- Hero -->
+    <section class="hero">
+      <span class="hero__strip"><span class="rec"></span> REC · localhost</span>
+      <h1 class="hero__title">Grabá tu propia <mark>cinta</mark> de YouTube.</h1>
+      <p class="hero__sub">Buscá temas o pegá una playlist. Tildá los que querés y bajalos como MP3 o MP4.</p>
 
-    <main class="shell">
-        <!-- ── Hero + búsqueda ────────────────────────────────── -->
-        <section class="hero">
-            <h1 class="hero__title">Bajá música de <span>YouTube</span></h1>
-            <p class="hero__sub">Buscá un tema o pegá una playlist. Elegí cuáles, y guardalos como MP3 o MP4.</p>
-
-            <div class="searchbar">
-                <svg class="searchbar__glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input
-                    type="text"
-                    id="query"
-                    class="searchbar__input"
-                    placeholder="Ej: canciones de Pescetti  ·  o pegá una URL de playlist"
-                    autocomplete="off"
-                    spellcheck="false">
-                <button class="searchbar__clear" id="clearBtn" type="button" title="Limpiar" hidden>×</button>
-                <button id="searchBtn" class="searchbar__btn">
-                    <span class="btn-label">Buscar</span>
-                    <span class="spinner" aria-hidden="true"></span>
-                </button>
-            </div>
-        </section>
-
-        <!-- ── Controles ──────────────────────────────────────── -->
-        <section class="controls" id="controls" hidden>
-            <div class="controls__row">
-                <div class="control-group">
-                    <span class="control-label">Formato</span>
-                    <div class="segmented" id="formatToggle">
-                        <button class="seg is-active" data-format="mp3">MP3</button>
-                        <button class="seg" data-format="mp4">MP4</button>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <span class="control-label">Calidad</span>
-                    <div class="segmented" id="qualityToggle">
-                        <button class="seg is-active" data-quality="high">Alta</button>
-                        <button class="seg" data-quality="medium">Media</button>
-                        <button class="seg" data-quality="low">Baja</button>
-                    </div>
-                </div>
-
-                <div class="control-group control-group--wide">
-                    <span class="control-label">Nombre</span>
-                    <div class="segmented" id="namingToggle">
-                        <button class="seg is-active" data-naming="youtube">YouTube</button>
-                        <button class="seg" data-naming="artist_title">Artista · Título</button>
-                        <button class="seg" data-naming="artist_album_title">+ Álbum</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="controls__row controls__row--folder">
-                <span class="control-label">Carpeta</span>
-                <div class="folder-field">
-                    <svg class="folder-field__glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <input type="text" id="destDir" class="folder-field__input"
-                           value="{{ default_dir }}" placeholder="{{ default_dir }}"
-                           autocomplete="off" spellcheck="false">
-                </div>
-                <button class="ghost-btn" id="browseBtn" title="Elegir carpeta">Examinar…</button>
-            </div>
-        </section>
-
-        <!-- ── Banner de playlist ─────────────────────────────── -->
-        <div class="playlist-banner" id="playlistBanner" hidden>
-            <svg class="playlist-banner__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-            </svg>
-            <span class="playlist-banner__title" id="playlistTitle"></span>
-            <span class="playlist-banner__count" id="playlistCount"></span>
-        </div>
-
-        <!-- ── Panel de descargas (inline, no tapa nada) ──────── -->
-        <section class="downloads" id="downloads" hidden>
-            <header class="downloads__head">
-                <div class="downloads__heading">
-                    <h2>Descargas</h2>
-                    <span class="downloads__sub" id="overallLabel"></span>
-                </div>
-                <button class="icon-btn" id="closeDownloads" aria-label="Ocultar descargas">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </header>
-            <div class="overall">
-                <div class="overall__track"><div class="overall__fill" id="overallFill"></div></div>
-            </div>
-            <div class="downloads__list" id="progressList"></div>
-            <p class="downloads__dest" id="destNote" hidden></p>
-        </section>
-
-        <!-- ── Toolbar de resultados ──────────────────────────── -->
-        <div class="results-bar" id="resultsBar" hidden>
-            <span class="results-bar__count" id="resultsCount"></span>
-            <button class="link-btn" id="selectAllBtn">Seleccionar todo</button>
-        </div>
-
-        <!-- ── Resultados ─────────────────────────────────────── -->
-        <section class="results" id="results"></section>
-
-        <!-- ── Estado vacío / mensajes ────────────────────────── -->
-        <div class="placeholder" id="placeholder">
-            <div class="placeholder__art" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 18V5l12-2v13"></path>
-                    <circle cx="6" cy="18" r="3"></circle>
-                    <circle cx="18" cy="16" r="3"></circle>
-                </svg>
-            </div>
-            <p id="placeholderText">Buscá algo arriba para empezar.</p>
-        </div>
-    </main>
-
-    <!-- ── Barra de acción flotante ───────────────────────────── -->
-    <div class="actionbar" id="actionbar" hidden>
-        <span class="actionbar__count" id="selectedCount">0 seleccionados</span>
-        <button class="download-btn" id="downloadBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            <span class="btn-label">Descargar</span>
-            <span class="spinner" aria-hidden="true"></span>
+      <div class="search">
+        <svg class="search__glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input id="query" type="text" placeholder="canciones de Pescetti… o pegá una playlist" autocomplete="off" spellcheck="false">
+        <button class="search__go" id="searchGo">
+          <span class="btn-label">BUSCAR</span>
+          <span class="spinner"></span>
         </button>
+      </div>
+
+      <div class="hero__mascot">
+        <canvas class="hero__cassette" id="heroCassette" width="176" height="110"></canvas>
+      </div>
+    </section>
+
+    <!-- Playlist banner -->
+    <div class="plbanner" id="plbanner" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      <span class="plbanner__title" id="plTitle"></span>
+      <span class="plbanner__count" id="plCount"></span>
     </div>
 
-    <!-- ── Historial (modal) ──────────────────────────────────── -->
-    <div class="modal" id="historyModal" hidden>
-        <div class="modal__backdrop" id="historyBackdrop"></div>
-        <div class="modal__card" role="dialog" aria-modal="true" aria-label="Historial de descargas">
-            <header class="modal__head">
-                <div class="modal__heading">
-                    <h2>Historial</h2>
-                    <span class="modal__sub" id="historySub"></span>
-                </div>
-                <button class="icon-btn" id="closeHistory" aria-label="Cerrar">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </header>
-            <div class="modal__body" id="historyList"></div>
+    <!-- Controles -->
+    <section class="controls" id="controls" hidden>
+      <div class="cgroup">
+        <span class="clabel">Formato</span>
+        <div class="seg-ctrl" id="segFormat">
+          <button class="on" data-val="mp3">MP3</button>
+          <button data-val="mp4">MP4</button>
         </div>
+      </div>
+      <div class="cgroup">
+        <span class="clabel">Calidad</span>
+        <div class="seg-ctrl" id="segQuality">
+          <button class="on" data-val="high">Alta</button>
+          <button data-val="medium">Media</button>
+          <button data-val="low">Baja</button>
+        </div>
+      </div>
+      <div class="cgroup">
+        <span class="clabel">Nombre</span>
+        <div class="seg-ctrl" id="segNaming">
+          <button class="on" data-val="youtube">YouTube</button>
+          <button data-val="artist_title">Artista</button>
+          <button data-val="artist_album_title">+ Álbum</button>
+        </div>
+      </div>
+      <div class="cgroup cgroup--wide">
+        <span class="clabel">Carpeta destino</span>
+        <div class="folder-row">
+          <div class="folder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            <input type="text" id="destDir" value="{{ default_dir }}" placeholder="{{ default_dir }}" spellcheck="false" autocomplete="off">
+          </div>
+          <button class="browse-btn" id="browseBtn">Examinar…</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cabecera de resultados -->
+    <div class="rhead" id="rhead" hidden>
+      <span class="rhead__count" id="rcount"></span>
+      <button class="rhead__all" id="selectAll">Seleccionar todo</button>
     </div>
 
-    <!-- ── Toast ──────────────────────────────────────────────── -->
-    <div class="toast" id="toast" hidden></div>
+    <!-- Skeleton -->
+    <div class="skeleton" id="skeleton" hidden>
+      <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
+    </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <!-- Tracks -->
+    <section class="tracks" id="tracks"></section>
+
+    <!-- Placeholder -->
+    <div class="placeholder" id="placeholder">
+      <canvas class="placeholder__cassette" id="placeholderCassette" width="150" height="94"></canvas>
+      <p>Buscá algo arriba para empezar a grabar.</p>
+    </div>
+
+  </main>
+
+  <!-- ── Barra de acción flotante ──────────────────────────────── -->
+  <div class="actionbar" id="actionbar" hidden>
+    <span class="actionbar__count" id="barCount">0 temas</span>
+    <button class="actionbar__go" id="barGo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      <span class="btn-label">GRABAR</span>
+      <span class="spinner"></span>
+    </button>
+  </div>
+
+  <!-- ── Deck console (panel de descarga) ──────────────────────── -->
+  <div class="deck-scrim" id="scrim" hidden></div>
+  <aside class="deck" id="deck" hidden>
+    <header class="deck__head">
+      <div class="deck__heading">
+        <canvas class="deck__reel" id="deckReel" width="26" height="26"></canvas>
+        <span class="deck__title">Grabando</span>
+        <span class="deck__sub" id="deckSub"></span>
+      </div>
+      <button class="deck__close" id="deckClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </header>
+    <div class="deck__master">
+      <span class="lbl">MASTER</span>
+      <div class="vu vu--master" id="masterVU"></div>
+      <span class="deck__pct" id="masterPct">0%</span>
+    </div>
+    <div class="deck__list" id="deckList"></div>
+  </aside>
+
+  <!-- ── Historial (modal) ─────────────────────────────────────── -->
+  <div class="modal" id="histModal" hidden>
+    <div class="modal-scrim" id="histScrim"></div>
+    <div class="modal-card">
+      <header class="modal-head">
+        <div class="modal-head__text">
+          <span class="modal-title">Historial</span>
+          <span class="modal-sub" id="histSub"></span>
+        </div>
+        <button class="modal-close" id="histClose">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </header>
+      <div class="modal-body" id="histList"></div>
+    </div>
+  </div>
+
+  <!-- ── Toast ─────────────────────────────────────────────────── -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="{{ url_for('static', filename='js/pixel-art.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
