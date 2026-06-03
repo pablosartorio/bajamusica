@@ -3,8 +3,14 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
-# Entorno virtual
+# Entornos virtuales
 .venv/
+.venv-build/
+
+# Build de Windows
+build/
+dist/
+ffmpeg-bin/
 
 # Datos locales de la app
 history.json

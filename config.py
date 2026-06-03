@@ -2,6 +2,8 @@
 Configuración central de la aplicación.
 Todo lo ajustable vive acá: carpeta destino, puerto, calidades, límites.
 """
+import os
+import sys
 from pathlib import Path
 
 # ── Servidor ──────────────────────────────────────────────────────────────
@@ -34,4 +36,14 @@ SUPPORTED_FORMATS = ("mp3", "mp4")
 NAMING_SCHEMES = ("youtube", "artist_title", "artist_album_title")
 
 # Historial de descargas completadas
-HISTORY_FILE = Path.home() / ".local" / "share" / "bajamusica" / "history.json"
+if sys.platform == "win32":
+    _appdata = Path(os.environ.get("APPDATA", Path.home()))
+    HISTORY_FILE = _appdata / "bajamusica" / "history.json"
+else:
+    HISTORY_FILE = Path.home() / ".local" / "share" / "bajamusica" / "history.json"
+
+# Ubicación de ffmpeg: en el bundle apunta a la carpeta del .exe donde está ffmpeg.exe
+if getattr(sys, 'frozen', False):
+    FFMPEG_LOCATION = str(Path(sys.executable).parent)
+else:
+    FFMPEG_LOCATION = None  # usar ffmpeg del PATH del sistema
