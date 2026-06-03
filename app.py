@@ -8,6 +8,7 @@ Endpoints:
     POST /download          → arranca una tarea de descarga, devuelve job_id
     GET  /progress/<job_id> → estado actual de la tarea (para polling)
 """
+import sys
 import threading
 import webbrowser
 
@@ -21,7 +22,14 @@ from core import jobs as jobs_mod
 from core import playlist as playlist_mod
 from core import search as search_mod
 
-app = Flask(__name__)
+# Cuando corre desde un bundle PyInstaller los assets están junto al .exe
+_ROOT = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).parent
+
+app = Flask(
+    __name__,
+    template_folder=str(_ROOT / 'templates'),
+    static_folder=str(_ROOT / 'static'),
+)
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # sin caché de static files en local
 
 
@@ -122,8 +130,26 @@ def _open_browser():
 
 
 if __name__ == "__main__":
-    if config.OPEN_BROWSER:
-        threading.Timer(1.2, _open_browser).start()
-    # threaded=True: permite que el polling de progreso responda mientras
-    # una descarga corre en su propio thread.
-    app.run(host=config.HOST, port=config.PORT, threaded=True)
+    try:
+        if config.OPEN_BROWSER:
+            threading.Timer(1.2, _open_browser).start()
+        # threaded=True: permite que el polling de progreso responda mientras
+        # una descarga corre en su propio thread.
+        app.run(host=config.HOST, port=config.PORT, threaded=True)
+    except Exception as exc:
+        if getattr(sys, 'frozen', False):
+            # En el bundle no hay consola: mostrar el error en un diálogo.
+            try:
+                import tkinter as tk
+                from tkinter import messagebox
+                root = tk.Tk()
+                root.withdraw()
+                messagebox.showerror(
+                    "BajaMusica - Error al iniciar",
+                    f"No se pudo iniciar la aplicación:\n\n{exc}\n\n"
+                    "Verificá que el puerto 5000 esté libre.",
+                )
+                root.destroy()
+            except Exception:
+                pass
+        raise

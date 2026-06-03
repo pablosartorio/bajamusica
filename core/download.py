@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yt_dlp
 
+import config
 from . import jobs, metadata
 
 
@@ -51,6 +52,9 @@ def _build_opts(fmt, quality, download_dir, audio_map, video_map, hook):
         "progress_hooks": [hook],
         "ignoreerrors": False,
     }
+
+    if config.FFMPEG_LOCATION:
+        opts["ffmpeg_location"] = config.FFMPEG_LOCATION
 
     if fmt == "mp3":
         opts["format"] = "bestaudio/best"
