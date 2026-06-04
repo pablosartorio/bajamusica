@@ -13,7 +13,7 @@ OPEN_BROWSER = True          # abrir el navegador automáticamente al arrancar
 
 # ── Descargas ─────────────────────────────────────────────────────────────
 DOWNLOAD_DIR = Path.home() / "Music" / "YT-Downloads"
-MAX_SEARCH_RESULTS = 12
+MAX_SEARCH_RESULTS = 30
 
 # Mapa de calidad de audio (MP3) → bitrate en kbps
 AUDIO_QUALITY = {
