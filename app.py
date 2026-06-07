@@ -8,6 +8,7 @@ Endpoints:
     POST /download          → arranca una tarea de descarga, devuelve job_id
     GET  /progress/<job_id> → estado actual de la tarea (para polling)
 """
+import sys
 import threading
 import webbrowser
 
@@ -21,7 +22,18 @@ from core import jobs as jobs_mod
 from core import playlist as playlist_mod
 from core import search as search_mod
 
-app = Flask(__name__)
+# Cuando corre desde un bundle PyInstaller los assets van a sys._MEIPASS
+# (en onedir 6.x es la subcarpeta _internal, NO la carpeta del .exe).
+if getattr(sys, 'frozen', False):
+    _ROOT = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+else:
+    _ROOT = Path(__file__).parent
+
+app = Flask(
+    __name__,
+    template_folder=str(_ROOT / 'templates'),
+    static_folder=str(_ROOT / 'static'),
+)
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # sin caché de static files en local
 
 
@@ -50,13 +62,20 @@ def download():
     quality = data.get("quality", "high")
     naming  = data.get("naming", "youtube")
 
-    raw_dir = data.get("dest_dir", "").strip()
+    raw_dir = (data.get("dest_dir") or "").strip()
     dest_dir = Path(raw_dir).expanduser() if raw_dir else config.DOWNLOAD_DIR
 
-    if not items:
+    if not isinstance(items, list) or not items:
         return jsonify({"error": "No se seleccionó ningún item"}), 400
+    # Quedarnos solo con items bien formados (dict con id): evita un 500 más
+    # adelante en create_job / run_job ante un POST malformado.
+    items = [it for it in items if isinstance(it, dict) and it.get("id")]
+    if not items:
+        return jsonify({"error": "Ningún item tiene un id válido"}), 400
     if fmt not in config.SUPPORTED_FORMATS:
         return jsonify({"error": f"Formato no soportado: {fmt}"}), 400
+    if quality not in config.AUDIO_QUALITY:
+        quality = "high"
     if naming not in config.NAMING_SCHEMES:
         naming = "youtube"
 
@@ -89,14 +108,20 @@ def browse_dir():
     except ImportError:
         return jsonify({"error": "tkinter no disponible en este sistema"}), 501
 
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes("-topmost", True)
-    folder = filedialog.askdirectory(
-        title="Elegí la carpeta de destino",
-        initialdir=str(config.DOWNLOAD_DIR),
-    )
-    root.destroy()
+    # Tkinter puede fallar en runtime aunque importe (sin display en Linux,
+    # o por correr fuera del main thread). Lo envolvemos para devolver un
+    # error limpio en vez de un 500.
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        folder = filedialog.askdirectory(
+            title="Elegí la carpeta de destino",
+            initialdir=str(config.DOWNLOAD_DIR),
+        )
+        root.destroy()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"No se pudo abrir el selector: {exc}"}), 200
     return jsonify({"path": folder or None})
 
 
@@ -122,8 +147,26 @@ def _open_browser():
 
 
 if __name__ == "__main__":
-    if config.OPEN_BROWSER:
-        threading.Timer(1.2, _open_browser).start()
-    # threaded=True: permite que el polling de progreso responda mientras
-    # una descarga corre en su propio thread.
-    app.run(host=config.HOST, port=config.PORT, threaded=True)
+    try:
+        if config.OPEN_BROWSER:
+            threading.Timer(1.2, _open_browser).start()
+        # threaded=True: permite que el polling de progreso responda mientras
+        # una descarga corre en su propio thread.
+        app.run(host=config.HOST, port=config.PORT, threaded=True)
+    except Exception as exc:
+        if getattr(sys, 'frozen', False):
+            # En el bundle no hay consola: mostrar el error en un diálogo.
+            try:
+                import tkinter as tk
+                from tkinter import messagebox
+                root = tk.Tk()
+                root.withdraw()
+                messagebox.showerror(
+                    "BajaMusica - Error al iniciar",
+                    f"No se pudo iniciar la aplicación:\n\n{exc}\n\n"
+                    "Verificá que el puerto 5000 esté libre.",
+                )
+                root.destroy()
+            except Exception:
+                pass
+        raise

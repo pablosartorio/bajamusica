@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sonido — Bajá música de YouTube, sin complicaciones</title>
+<meta name="description" content="Descargador de YouTube con interfaz web local. Buscá, elegí y guardá como MP3 o MP4. Corre en Windows y Linux, sin cuenta ni registro.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream:   #f1e7d3; --cream-2: #e8dabe; --card: #fbf5e8;
+    --ink:     #211c14; --ink-2:   #5b5142; --muted: #877b66;
+    --orange:  #e0532a; --orange-2:#c4441d; --teal: #1f8a6d;
+    --fd: 'Bricolage Grotesque', system-ui, sans-serif;
+    --fm: 'Space Mono', ui-monospace, monospace;
+    --shadow:    4px 4px 0 var(--ink);
+    --shadow-sm: 3px 3px 0 var(--ink);
+    --ease: cubic-bezier(0.3, 1.2, 0.5, 1);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--fd);
+    background: var(--cream);
+    background-image: repeating-linear-gradient(0deg, transparent 0 38px, rgba(33,28,20,.025) 38px 39px);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--orange-2); text-underline-offset: 3px; }
+
+  /* ── Topbar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px; background: var(--cream);
+    border-bottom: 2px solid var(--ink);
+  }
+  .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+  .brand__mark {
+    width: 36px; height: 36px; display: grid; place-items: center;
+    background: var(--orange); border: 2px solid var(--ink);
+    border-radius: 9px; box-shadow: var(--shadow-sm); flex-shrink: 0;
+  }
+  /* cassette icon inline */
+  .brand__mark svg { width: 22px; height: 14px; }
+  .brand__name { font-weight: 800; font-size: 1.3rem; letter-spacing: -0.02em; }
+  .brand__tag {
+    font-family: var(--fm); font-size: 0.58rem; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--orange-2); border: 1.5px solid var(--orange);
+    padding: 3px 7px; border-radius: 5px;
+  }
+  .topbar__cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--orange); color: var(--card);
+    border: 2px solid var(--ink); border-radius: 9px;
+    font-family: var(--fd); font-weight: 800; font-size: 0.88rem;
+    padding: 9px 18px; text-decoration: none;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.1s var(--ease), box-shadow 0.1s var(--ease);
+  }
+  .topbar__cta:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); color: var(--card); }
+  .topbar__cta:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+
+  /* ── Wrapper ── */
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 28px; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 72px 0 56px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+  }
+  .hero__badge {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--fm); font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--card); background: var(--ink);
+    padding: 7px 13px; border-radius: 6px; margin-bottom: 22px;
+  }
+  .hero__badge .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--orange);
+    animation: blink 1.4s steps(2) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  .hero__title {
+    font-weight: 800;
+    font-size: clamp(2.6rem, 7vw, 4.2rem);
+    line-height: 0.96; letter-spacing: -0.03em;
+    max-width: 680px;
+  }
+  .hero__title mark {
+    background: var(--orange); color: var(--card);
+    padding: 0 0.1em; border-radius: 8px;
+    box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  }
+  .hero__sub {
+    margin: 20px auto 0; font-family: var(--fm); font-size: 0.94rem;
+    color: var(--ink-2); max-width: 480px; line-height: 1.6;
+  }
+  .hero__actions {
+    display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 32px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    border: 2px solid var(--ink); border-radius: 11px;
+    font-family: var(--fd); font-weight: 800; font-size: 1rem;
+    padding: 13px 26px; text-decoration: none; cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform 0.1s var(--ease), box-shadow 0.1s var(--ease);
+  }
+  .btn:hover  { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
+  .btn:active { transform: translate(2px,2px);  box-shadow: 1px 1px 0 var(--ink); }
+  .btn--primary { background: var(--orange); color: var(--card); }
+  .btn--primary:hover { color: var(--card); }
+  .btn--ghost   { background: var(--card); color: var(--ink); }
+  .btn--ghost:hover { color: var(--ink); }
+  .btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  /* ── Platforms strip ── */
+  .platforms {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-top: 28px;
+    font-family: var(--fm); font-size: 0.72rem; font-weight: 700;
+    color: var(--ink-2);
+  }
+  .platforms .sep { color: var(--muted); }
+  .platform-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card); border: 2px solid var(--ink); border-radius: 7px;
+    padding: 5px 11px; box-shadow: var(--shadow-sm);
+  }
+  .platform-pill svg { width: 14px; height: 14px; }
+
+  /* ── Section titles ── */
+  .section { padding: 64px 0; }
+  .section + .section { border-top: 2px dashed var(--cream-2); }
+  .section__label {
+    font-family: var(--fm); font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--orange-2); margin-bottom: 10px;
+  }
+  .section__title {
+    font-weight: 800; font-size: clamp(1.7rem, 4vw, 2.4rem);
+    letter-spacing: -0.025em; line-height: 1.05; max-width: 540px;
+  }
+  .section__sub {
+    font-family: var(--fm); font-size: 0.9rem; color: var(--ink-2);
+    margin-top: 10px; max-width: 520px; line-height: 1.6;
+  }
+  .section--center { text-align: center; }
+  .section--center .section__title,
+  .section--center .section__sub { margin-left: auto; margin-right: auto; }
+
+  /* ── Feature grid ── */
+  .features {
+    display: grid; gap: 14px; margin-top: 36px;
+  }
+  @media (min-width: 560px) { .features { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 800px) { .features { grid-template-columns: 1fr 1fr 1fr; } }
+  .feature {
+    background: var(--card); border: 2px solid var(--ink); border-radius: 14px;
+    padding: 20px 20px 22px; box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .feature__icon {
+    width: 40px; height: 40px; display: grid; place-items: center;
+    background: var(--orange); color: var(--card);
+    border: 2px solid var(--ink); border-radius: 10px;
+    box-shadow: var(--shadow-sm); flex-shrink: 0;
+  }
+  .feature__icon svg { width: 20px; height: 20px; }
+  .feature__title { font-weight: 800; font-size: 1rem; line-height: 1.2; }
+  .feature__desc { font-family: var(--fm); font-size: 0.78rem; color: var(--ink-2); line-height: 1.55; }
+
+  /* ── How it works ── */
+  .steps { display: flex; flex-direction: column; gap: 0; margin-top: 36px; }
+  .step {
+    display: flex; align-items: flex-start; gap: 18px;
+    padding: 20px 0;
+    border-bottom: 2px dashed var(--cream-2);
+  }
+  .step:last-child { border-bottom: none; }
+  .step__num {
+    font-family: var(--fm); font-weight: 700; font-size: 0.78rem;
+    background: var(--ink); color: var(--cream);
+    width: 32px; height: 32px; border-radius: 8px;
+    display: grid; place-items: center; flex-shrink: 0; margin-top: 2px;
+  }
+  .step__body {}
+  .step__title { font-weight: 800; font-size: 1.05rem; margin-bottom: 4px; }
+  .step__desc { font-family: var(--fm); font-size: 0.8rem; color: var(--ink-2); line-height: 1.55; }
+
+  /* ── Platforms section ── */
+  .os-grid {
+    display: grid; gap: 14px; margin-top: 36px;
+  }
+  @media (min-width: 560px) { .os-grid { grid-template-columns: 1fr 1fr; } }
+  .os-card {
+    background: var(--card); border: 2px solid var(--ink); border-radius: 14px;
+    padding: 24px 22px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .os-card__head { display: flex; align-items: center; gap: 12px; }
+  .os-icon {
+    width: 44px; height: 44px; display: grid; place-items: center;
+    background: var(--cream-2); border: 2px solid var(--ink); border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+  .os-icon svg { width: 24px; height: 24px; }
+  .os-card__name { font-weight: 800; font-size: 1.15rem; }
+  .os-card__tag {
+    font-family: var(--fm); font-size: 0.6rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--teal); border: 1.5px solid var(--teal);
+    padding: 2px 7px; border-radius: 5px;
+  }
+  .os-card__items { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  .os-card__items li {
+    font-family: var(--fm); font-size: 0.8rem; color: var(--ink-2);
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .os-card__items li::before { content: '▸'; color: var(--orange); flex-shrink: 0; font-weight: 700; }
+  .os-card__items li b { color: var(--ink); }
+
+  /* ── Terminal block ── */
+  .terminal {
+    background: var(--ink); color: var(--cream);
+    border: 2px solid var(--ink); border-radius: 12px;
+    padding: 18px 20px; font-family: var(--fm); font-size: 0.84rem;
+    line-height: 1.7; box-shadow: var(--shadow); margin-top: 36px;
+    overflow-x: auto;
+  }
+  .terminal .prompt { color: var(--orange); }
+  .terminal .comment { color: #877b66; }
+
+  /* ── CTA banner ── */
+  .cta-banner {
+    background: var(--ink); color: var(--cream);
+    border: 2px solid var(--ink); border-radius: 16px;
+    padding: 40px 36px; text-align: center; box-shadow: var(--shadow);
+    margin-top: 0;
+  }
+  .cta-banner h2 {
+    font-weight: 800; font-size: clamp(1.5rem, 4vw, 2.2rem);
+    letter-spacing: -0.025em; margin-bottom: 10px;
+  }
+  .cta-banner h2 mark {
+    background: var(--orange); color: var(--card);
+    padding: 0 0.1em; border-radius: 6px;
+  }
+  .cta-banner p {
+    font-family: var(--fm); font-size: 0.88rem; color: rgba(241,231,211,0.7);
+    max-width: 440px; margin: 0 auto 26px; line-height: 1.6;
+  }
+  .cta-banner .btn--ghost { background: var(--cream); color: var(--ink); }
+  .cta-banner .btn--ghost:hover { color: var(--ink); }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 2px solid var(--ink);
+    padding: 28px 32px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    font-family: var(--fm); font-size: 0.74rem; color: var(--muted);
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--orange-2); }
+  .footer__brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--ink); }
+
+  @keyframes rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  .hero { animation: rise 0.4s cubic-bezier(0.3,1.2,0.5,1) both; }
+</style>
+</head>
+<body>
+
+<!-- ── Topbar ── -->
+<header class="topbar">
+  <a class="brand" href="#">
+    <div class="brand__mark">
+      <svg viewBox="0 0 22 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="20" height="12" rx="2" stroke="#fbf5e8" stroke-width="1.5" fill="none"/>
+        <circle cx="6.5" cy="7" r="2.5" stroke="#fbf5e8" stroke-width="1.5" fill="none"/>
+        <circle cx="15.5" cy="7" r="2.5" stroke="#fbf5e8" stroke-width="1.5" fill="none"/>
+        <line x1="9" y1="7" x2="13" y2="7" stroke="#fbf5e8" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <span class="brand__name">Sonido</span>
+    <span class="brand__tag">Free &amp; Open Source</span>
+  </a>
+  <a class="topbar__cta" href="https://github.com/pablosartorio/bajamusica/releases/latest">
+    <svg viewBox="0 0 16 16" fill="currentColor" width="15" height="15"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM4.5 7.5a.5.5 0 0 1 0-1h5.793L8.146 4.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 7.5H4.5Z"/></svg>
+    Descargar
+  </a>
+</header>
+
+<!-- ── Hero ── -->
+<div class="wrap">
+  <div class="hero">
+    <div class="hero__badge">
+      <span class="dot"></span>
+      YouTube Downloader · local · sin cuenta
+    </div>
+
+    <h1 class="hero__title">
+      Bajá música de YouTube<br><mark>sin complicaciones</mark>
+    </h1>
+
+    <p class="hero__sub">
+      Buscá canciones o pegá una playlist entera, elegís qué bajar,
+      y lo guardás como MP3 o MP4. Corre en tu máquina, nada sale a internet
+      salvo las requests a YouTube.
+    </p>
+
+    <div class="hero__actions">
+      <a class="btn btn--primary" href="https://github.com/pablosartorio/bajamusica/releases/latest">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+        Descargar para Windows
+      </a>
+      <a class="btn btn--ghost" href="https://github.com/pablosartorio/bajamusica">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        Ver en GitHub
+      </a>
+    </div>
+
+    <div class="platforms">
+      <span class="platform-pill">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M0 13.772 6.545 14.5V8.044H0V13.772ZM0 7.044h6.545V.5L0 1.228v5.816ZM7.455 14.5 16 15.5V8.044H7.455V14.5ZM7.455.5v6.544H16V.5L7.455.5Z"/></svg>
+        Windows .exe
+      </span>
+      <span class="sep">·</span>
+      <span class="platform-pill">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM5.078 6.979a.5.5 0 1 1-.707.707L3.5 6.814l-.871.872a.5.5 0 1 1-.707-.707l.872-.871-.872-.872a.5.5 0 1 1 .707-.707l.871.872.872-.872a.5.5 0 1 1 .707.707L4.207 6.107l.871.872Zm6 0a.5.5 0 1 1-.707.707L9.5 6.814l-.871.872a.5.5 0 1 1-.707-.707l.872-.871-.872-.872a.5.5 0 1 1 .707-.707l.871.872.872-.872a.5.5 0 1 1 .707.707l-.872.871.872.872ZM8 9a3 3 0 1 1 0 6A3 3 0 0 1 8 9Zm0 1a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>
+        Linux
+      </span>
+    </div>
+  </div>
+</div>
+
+<div style="border-top: 2px dashed var(--cream-2);"></div>
+
+<!-- ── Features ── -->
+<div class="wrap">
+  <section class="section section--center">
+    <div class="section__label">Features</div>
+    <h2 class="section__title">Todo lo que necesitás, nada que no necesitás</h2>
+    <p class="section__sub">Sin cuentas, sin suscripciones, sin extensiones de navegador. Solo buscás, elegís y bajás.</p>
+
+    <div class="features">
+
+      <div class="feature">
+        <div class="feature__icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="9" r="6"/><path d="m15 15 3 3"/>
+          </svg>
+        </div>
+        <div class="feature__title">Búsqueda o URL directa</div>
+        <div class="feature__desc">Escribís el nombre del tema o pegás la URL de un video o playlist de YouTube. Los dos caminos funcionan igual.</div>
+      </div>
+
+      <div class="feature">
+        <div class="feature__icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11V2M2 9l7 7 7-7"/>
+            <path d="M2 16h16"/>
+          </svg>
+        </div>
+        <div class="feature__title">Playlists completas</div>
+        <div class="feature__desc">Pegás la URL de una playlist y la app la expande entera. Revisás, tildás lo que querés, y descargás.</div>
+      </div>
+
+      <div class="feature">
+        <div class="feature__icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="14" height="14" rx="2"/>
+            <path d="m8 8 4 2-4 2V8Z"/>
+          </svg>
+        </div>
+        <div class="feature__title">MP3 o MP4</div>
+        <div class="feature__desc">Elegís el formato antes de bajar. MP3 para audio, MP4 para video. Convertido localmente con ffmpeg.</div>
+      </div>
+
+      <div class="feature">
+        <div class="feature__icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10h2l2-7 4 14 2-7h4"/>
+          </svg>
+        </div>
+        <div class="feature__title">Progreso en vivo</div>
+        <div class="feature__desc">Panel con barras VU por cada archivo: descargando, convirtiendo, listo. Cerrás el panel y la descarga sigue igual.</div>
+      </div>
+
+      <div class="feature">
+        <div class="feature__icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8l-4-4Z"/>
+            <path d="M12 2v4h4M8 13h4M8 10h4"/>
+          </svg>
+        </div>
+        <div class="feature__title">Historial de descargas</div>
+        <div class="feature__desc">Cada descarga queda guardada. Un botón te muestra lo que bajaste con fecha, formato y carpeta destino.</div>
+      </div>
+
+      <div class="feature">
+        <div class="feature__icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="16" height="11" rx="2"/>
+            <path d="M6 7V5a4 4 0 0 1 8 0v2"/>
+          </svg>
+        </div>
+        <div class="feature__title">Sin cuenta ni registro</div>
+        <div class="feature__desc">No necesitás cuenta de Google ni ningún login. Corre completamente local en tu máquina.</div>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<div style="border-top: 2px dashed var(--cream-2);"></div>
+
+<!-- ── How it works ── -->
+<div class="wrap">
+  <section class="section">
+    <div class="section__label">¿Cómo funciona?</div>
+    <h2 class="section__title">Tres pasos y listo</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step__num">01</div>
+        <div class="step__body">
+          <div class="step__title">Buscás o pegás una URL</div>
+          <div class="step__desc">Escribís el nombre de un artista, canción o álbum, o pegás directo la URL de un video o playlist de YouTube. El buscador devuelve hasta 30 resultados con miniatura, canal y duración.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__num">02</div>
+        <div class="step__body">
+          <div class="step__title">Elegís qué bajar</div>
+          <div class="step__desc">Tildás los tracks que querés. Elegís el formato (MP3 / MP4), la calidad, el esquema de nombre y la carpeta de destino en tu máquina. Podés abrir el explorador nativo para elegir la carpeta.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__num">03</div>
+        <div class="step__body">
+          <div class="step__title">Descargás y seguís el progreso</div>
+          <div class="step__desc">Hacés click en Descargar. Un panel muestra el progreso de cada archivo con barras VU. Cuando termina, los archivos están en tu carpeta, listos para escuchar offline.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div style="border-top: 2px dashed var(--cream-2);"></div>
+
+<!-- ── Platforms ── -->
+<div class="wrap">
+  <section class="section">
+    <div class="section__label">Plataformas</div>
+    <h2 class="section__title">Windows y Linux</h2>
+    <p class="section__sub">Mismo código, misma experiencia. En Windows no necesitás instalar nada; en Linux son dos comandos de terminal.</p>
+
+    <div class="os-grid">
+
+      <div class="os-card">
+        <div class="os-card__head">
+          <div class="os-icon">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 13.772 6.545 14.5V8.044H0V13.772ZM0 7.044h6.545V.5L0 1.228v5.816ZM7.455 14.5 16 15.5V8.044H7.455V14.5ZM7.455.5v6.544H16V.5L7.455.5Z"/></svg>
+          </div>
+          <div>
+            <div class="os-card__name">Windows</div>
+            <span class="os-card__tag">Zero install</span>
+          </div>
+        </div>
+        <ul class="os-card__items">
+          <li>Descargás el <b>.exe</b> desde la página de releases</li>
+          <li>Lo ejecutás — se abre el navegador en <b>localhost</b></li>
+          <li>Python, ffmpeg y dependencias van incluidos en el ejecutable</li>
+          <li>Compatible con Windows 10 y 11</li>
+        </ul>
+      </div>
+
+      <div class="os-card">
+        <div class="os-card__head">
+          <div class="os-icon">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM1.5 8a6.5 6.5 0 1 1 13 0 6.5 6.5 0 0 1-13 0Z"/></svg>
+          </div>
+          <div>
+            <div class="os-card__name">Linux</div>
+            <span class="os-card__tag">Python nativo</span>
+          </div>
+        </div>
+        <ul class="os-card__items">
+          <li>Instalás <b>ffmpeg</b> y <b>python3-tk</b> con apt</li>
+          <li>Clonás el repo y corrés <b>./run.sh</b></li>
+          <li>El script crea el entorno virtual e instala las dependencias</li>
+          <li>Probado en Ubuntu 22.04+ y Debian</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="terminal">
+      <span class="comment"># Linux — tres comandos y ya</span><br>
+      <span class="prompt">$</span> sudo apt install ffmpeg python3-tk<br>
+      <span class="prompt">$</span> git clone https://github.com/pablosartorio/bajamusica.git<br>
+      <span class="prompt">$</span> cd bajamusica &amp;&amp; ./run.sh
+    </div>
+  </section>
+</div>
+
+<div style="border-top: 2px dashed var(--cream-2);"></div>
+
+<!-- ── CTA ── -->
+<div class="wrap">
+  <section class="section">
+    <div class="cta-banner">
+      <h2>Empezá a bajar <mark>ahora</mark></h2>
+      <p>Gratis, sin cuenta, sin límites. El código es abierto y podés ver exactamente qué hace.</p>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <a class="btn btn--primary" href="https://github.com/pablosartorio/bajamusica/releases/latest">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+          Descargar para Windows
+        </a>
+        <a class="btn btn--ghost" href="https://github.com/pablosartorio/bajamusica">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          Ver código fuente
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="footer__brand">
+    <div style="width:26px;height:26px;background:var(--orange);border:2px solid var(--ink);border-radius:6px;display:grid;place-items:center;box-shadow:var(--shadow-sm);">
+      <svg viewBox="0 0 22 14" fill="none" width="16" height="10"><rect x="1" y="1" width="20" height="12" rx="2" stroke="#fbf5e8" stroke-width="1.5" fill="none"/><circle cx="6.5" cy="7" r="2.5" stroke="#fbf5e8" stroke-width="1.5" fill="none"/><circle cx="15.5" cy="7" r="2.5" stroke="#fbf5e8" stroke-width="1.5" fill="none"/><line x1="9" y1="7" x2="13" y2="7" stroke="#fbf5e8" stroke-width="1.5"/></svg>
+    </div>
+    Sonido
+  </div>
+  <div>
+    <a href="https://github.com/pablosartorio/bajamusica">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/pablosartorio/bajamusica/releases">Releases</a>
+    &nbsp;·&nbsp;
+    <a href="como-funciona.html">Cómo funciona</a>
+  </div>
+  <div>Uso personal — descargá solo contenido sobre el que tengas derechos.</div>
+</footer>
+
+</body>
+</html>

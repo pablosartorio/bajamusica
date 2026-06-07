@@ -91,7 +91,11 @@ def load_history() -> list[dict]:
     path = config.HISTORY_FILE
     try:
         if path.exists():
-            return json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8"))
+            # Defensa ante un history.json corrupto/manipulado: solo devolvemos
+            # una lista, si no el frontend (y _save_to_history) podrían romperse.
+            if isinstance(data, list):
+                return data
     except Exception:  # noqa: BLE001
         pass
     return []

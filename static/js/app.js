@@ -1,588 +1,491 @@
 /* ============================================================
-   Sonido — lógica del frontend
+   Sonido · Cassette — lógica principal
+   Conectado a la API Flask real (/search, /download, /progress…)
    ============================================================ */
 
-// ── Estado ──────────────────────────────────────────────────
+const VU_SEGS        = 18;
+const VU_SEGS_MASTER = 28;
+const POLL_MS        = 500;
+
 const state = {
-    results: [],            // resultados de la última búsqueda
-    selected: new Set(),    // ids seleccionados
-    format: "mp3",
-    quality: "high",
-    naming: "youtube",
-    pollTimer: null,        // intervalo de polling (independiente del panel)
-    job: null,              // { id, items, active, dest, format }
+  results:  [],
+  selected: new Set(),
+  format:   'mp3',
+  quality:  'high',
+  naming:   'youtube',
+  pollTimer: null,
+  job:      null,
 };
 
-// ── Referencias al DOM ──────────────────────────────────────
 const el = {
-    query:          document.getElementById("query"),
-    searchBtn:      document.getElementById("searchBtn"),
-    clearBtn:       document.getElementById("clearBtn"),
-    controls:       document.getElementById("controls"),
-    formatToggle:   document.getElementById("formatToggle"),
-    qualityToggle:  document.getElementById("qualityToggle"),
-    namingToggle:   document.getElementById("namingToggle"),
-    destDir:        document.getElementById("destDir"),
-    browseBtn:      document.getElementById("browseBtn"),
-    resultsBar:     document.getElementById("resultsBar"),
-    resultsCount:   document.getElementById("resultsCount"),
-    selectAllBtn:   document.getElementById("selectAllBtn"),
-    results:        document.getElementById("results"),
-    placeholder:    document.getElementById("placeholder"),
-    placeholderText:document.getElementById("placeholderText"),
-    playlistBanner: document.getElementById("playlistBanner"),
-    playlistTitle:  document.getElementById("playlistTitle"),
-    playlistCount:  document.getElementById("playlistCount"),
-    actionbar:      document.getElementById("actionbar"),
-    selectedCount:  document.getElementById("selectedCount"),
-    downloadBtn:    document.getElementById("downloadBtn"),
-    // descargas (panel inline)
-    downloadsBtn:   document.getElementById("downloadsBtn"),
-    downloads:      document.getElementById("downloads"),
-    overallLabel:   document.getElementById("overallLabel"),
-    overallFill:    document.getElementById("overallFill"),
-    progressList:   document.getElementById("progressList"),
-    destNote:       document.getElementById("destNote"),
-    closeDownloads: document.getElementById("closeDownloads"),
-    // historial (modal)
-    historyBtn:     document.getElementById("historyBtn"),
-    historyModal:   document.getElementById("historyModal"),
-    historyBackdrop:document.getElementById("historyBackdrop"),
-    historySub:     document.getElementById("historySub"),
-    historyList:    document.getElementById("historyList"),
-    closeHistory:   document.getElementById("closeHistory"),
-    // varios
-    toast:          document.getElementById("toast"),
+  query:      document.getElementById('query'),
+  searchGo:   document.getElementById('searchGo'),
+  plbanner:   document.getElementById('plbanner'),
+  plTitle:    document.getElementById('plTitle'),
+  plCount:    document.getElementById('plCount'),
+  controls:   document.getElementById('controls'),
+  destDir:    document.getElementById('destDir'),
+  browseBtn:  document.getElementById('browseBtn'),
+  rhead:      document.getElementById('rhead'),
+  rcount:     document.getElementById('rcount'),
+  selectAll:  document.getElementById('selectAll'),
+  skeleton:   document.getElementById('skeleton'),
+  tracks:     document.getElementById('tracks'),
+  placeholder:document.getElementById('placeholder'),
+  actionbar:  document.getElementById('actionbar'),
+  barCount:   document.getElementById('barCount'),
+  barGo:      document.getElementById('barGo'),
+  scrim:      document.getElementById('scrim'),
+  deck:       document.getElementById('deck'),
+  deckClose:  document.getElementById('deckClose'),
+  deckSub:    document.getElementById('deckSub'),
+  deckList:   document.getElementById('deckList'),
+  masterVU:   document.getElementById('masterVU'),
+  masterPct:  document.getElementById('masterPct'),
+  deckTool:   document.getElementById('deckTool'),
+  histTool:   document.getElementById('histTool'),
+  histModal:  document.getElementById('histModal'),
+  histScrim:  document.getElementById('histScrim'),
+  histSub:    document.getElementById('histSub'),
+  histList:   document.getElementById('histList'),
+  histClose:  document.getElementById('histClose'),
+  toast:      document.getElementById('toast'),
+  deckReel:   document.getElementById('deckReel'),
 };
 
-const CHECK_SVG  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-const FILE_SVG   = `<svg class="file-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`;
-const FOLDER_SVG = `<svg class="file-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+const CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 
-// ── Utilidades ──────────────────────────────────────────────
-function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str ?? "";
-    return div.innerHTML;
+// ── Utilidades ───────────────────────────────────────────────
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str ?? '';
+  return d.innerHTML;
 }
-
-function isPlaylistUrl(q) {
-    try {
-        const url = new URL(q.trim());
-        return (
-            (url.hostname.includes("youtube.com") || url.hostname.includes("youtu.be")) &&
-            url.searchParams.has("list")
-        );
-    } catch {
-        return false;
-    }
-}
-
 function fmtBytes(n) {
-    if (n == null || n <= 0) return "";
-    if (n < 1024) return `${n} B`;
-    const units = ["KB", "MB", "GB"];
-    let v = n, i = -1;
-    do { v /= 1024; i++; } while (v >= 1024 && i < units.length - 1);
-    return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+  if (!n || n <= 0) return '';
+  if (n < 1024) return `${n} B`;
+  const u = ['KB','MB','GB']; let v = n, i = -1;
+  do { v /= 1024; i++; } while (v >= 1024 && i < u.length - 1);
+  return `${v.toFixed(v < 10 ? 1 : 0)} ${u[i]}`;
 }
-
-function fmtSpeed(bps) {
-    const s = fmtBytes(bps);
-    return s ? `${s}/s` : "";
-}
-
+function fmtSpeed(bps) { const s = fmtBytes(bps); return s ? `${s}/s` : ''; }
 function fmtEta(secs) {
-    if (secs == null || secs < 0) return "";
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${String(s).padStart(2, "0")}`;
+  if (secs == null || secs < 0) return '';
+  return `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2,'0')}`;
+}
+function isPlaylistUrl(q) {
+  try {
+    const u = new URL(q.trim());
+    return (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) && u.searchParams.has('list');
+  } catch { return false; }
 }
 
-// ── Búsqueda ────────────────────────────────────────────────
+// ── VU meters ────────────────────────────────────────────────
+function buildVU(host, n = VU_SEGS) {
+  host.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('span');
+    s.className = 'seg';
+    host.appendChild(s);
+  }
+}
+function setVU(host, pct, n = VU_SEGS) {
+  const lit = Math.round((pct / 100) * n);
+  [...host.children].forEach((s, i) => {
+    s.classList.toggle('lit', i < lit);
+    s.classList.toggle('hot', i < lit && i >= n - 3);
+  });
+}
+
+// ── Toast ────────────────────────────────────────────────────
+let toastT;
+function showToast(msg, kind = '') {
+  el.toast.textContent = msg;
+  el.toast.className = 'toast ' + kind;
+  el.toast.hidden = false;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { el.toast.hidden = true; }, kind === 'ok' ? 4000 : 5000);
+}
+
+// ── Búsqueda ─────────────────────────────────────────────────
 async function runSearch() {
-    const q = el.query.value.trim();
-    if (!q) return;
+  const q = el.query.value.trim();
+  if (!q) { el.query.focus(); return; }
 
-    setLoading(true);
-    try {
-        let results = [];
-        let playlistInfo = null;
+  el.searchGo.disabled = true;
+  el.searchGo.classList.add('loading');
+  el.placeholder.hidden = true;
+  el.tracks.innerHTML = '';
+  el.rhead.hidden = true;
+  el.skeleton.hidden = false;
 
-        if (isPlaylistUrl(q)) {
-            const res = await fetch(`/expand_playlist?url=${encodeURIComponent(q)}`);
-            const data = await res.json();
-            if (data.error) {
-                showToast(`Error al cargar playlist: ${data.error}`, "error");
-                return;
-            }
-            results = data.results || [];
-            playlistInfo = { title: data.title, count: results.length };
-        } else {
-            const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
-            const data = await res.json();
-            if (data.error) {
-                showToast(`Error en la búsqueda: ${data.error}`, "error");
-                return;
-            }
-            results = data.results || [];
-        }
+  try {
+    let results = [], playlistInfo = null;
 
-        state.results = results;
-        state.selected.clear();
-        renderResults();
-
-        if (playlistInfo) {
-            state.results.forEach((r) => state.selected.add(r.id));
-            document.querySelectorAll(".result").forEach((c) => c.classList.add("is-selected"));
-            el.selectAllBtn.textContent = "Deseleccionar todo";
-            showPlaylistBanner(playlistInfo.title, playlistInfo.count);
-        } else {
-            el.selectAllBtn.textContent = "Seleccionar todo";
-            hidePlaylistBanner();
-        }
-
-        updateActionbar();
-    } catch (err) {
-        showToast("No se pudo conectar con el servidor.", "error");
-    } finally {
-        setLoading(false);
-    }
-}
-
-function setLoading(on) {
-    el.searchBtn.classList.toggle("is-loading", on);
-    el.searchBtn.disabled = on;
-}
-
-// ── Banner de playlist ──────────────────────────────────────
-function showPlaylistBanner(title, count) {
-    el.playlistTitle.textContent = title;
-    el.playlistCount.textContent = `${count} ${count === 1 ? "canción" : "canciones"}`;
-    el.playlistBanner.hidden = false;
-}
-function hidePlaylistBanner() {
-    el.playlistBanner.hidden = true;
-}
-
-// ── Render de resultados ────────────────────────────────────
-function renderResults() {
-    el.results.innerHTML = "";
-
-    if (state.results.length === 0) {
-        el.placeholder.hidden = false;
-        el.placeholderText.textContent = "No se encontraron resultados. Probá con otra búsqueda.";
-        el.controls.hidden = true;
-        el.resultsBar.hidden = true;
-        hidePlaylistBanner();
-        return;
-    }
-
-    el.placeholder.hidden = true;
-    el.controls.hidden = false;
-    el.resultsBar.hidden = false;
-    el.resultsCount.textContent =
-        `${state.results.length} ${state.results.length === 1 ? "resultado" : "resultados"}`;
-
-    state.results.forEach((item, i) => {
-        const card = document.createElement("div");
-        card.className = "result";
-        card.dataset.id = item.id;
-        card.style.animationDelay = `${Math.min(i, 12) * 0.03}s`;
-
-        card.innerHTML = `
-            <div class="result__thumb">
-                <img src="${item.thumbnail}" alt="" loading="lazy"
-                     onerror="this.style.display='none'">
-                ${item.duration ? `<span class="result__duration">${escapeHtml(item.duration)}</span>` : ""}
-            </div>
-            <div class="result__info">
-                <div class="result__title">${escapeHtml(item.title)}</div>
-                <div class="result__channel">${escapeHtml(item.channel)}</div>
-            </div>
-            <div class="result__check">${CHECK_SVG}</div>
-        `;
-
-        card.addEventListener("click", () => toggleSelect(item.id, card));
-        el.results.appendChild(card);
-    });
-}
-
-// ── Selección ───────────────────────────────────────────────
-function toggleSelect(id, card) {
-    if (state.selected.has(id)) {
-        state.selected.delete(id);
-        card.classList.remove("is-selected");
+    if (isPlaylistUrl(q)) {
+      const res  = await fetch(`/expand_playlist?url=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (data.error) { showToast(`Error al cargar playlist: ${data.error}`); return; }
+      results = data.results || [];
+      playlistInfo = { title: data.title, count: results.length };
     } else {
-        state.selected.add(id);
-        card.classList.add("is-selected");
+      const res  = await fetch(`/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (data.error) { showToast(`Error en la búsqueda: ${data.error}`); return; }
+      results = data.results || [];
     }
-    updateActionbar();
-}
 
-function selectAll() {
-    const allSelected = state.selected.size === state.results.length;
+    state.results = results;
     state.selected.clear();
 
-    document.querySelectorAll(".result").forEach((card) => {
-        if (allSelected) {
-            card.classList.remove("is-selected");
-        } else {
-            state.selected.add(card.dataset.id);
-            card.classList.add("is-selected");
-        }
-    });
-
-    el.selectAllBtn.textContent = allSelected ? "Seleccionar todo" : "Deseleccionar todo";
-    updateActionbar();
-}
-
-function updateActionbar() {
-    const n = state.selected.size;
-    el.actionbar.hidden = n === 0;
-    el.selectedCount.textContent = n === 1 ? "1 seleccionado" : `${n} seleccionados`;
-
-    if (state.selected.size !== state.results.length) {
-        el.selectAllBtn.textContent = "Seleccionar todo";
-    } else if (state.results.length > 0) {
-        el.selectAllBtn.textContent = "Deseleccionar todo";
+    if (playlistInfo) {
+      results.forEach(r => state.selected.add(r.id));
+      el.plTitle.textContent = playlistInfo.title;
+      el.plCount.textContent = results.length + ' temas';
+      el.plbanner.hidden = false;
+    } else {
+      el.plbanner.hidden = true;
     }
+
+    el.controls.hidden = results.length === 0;
+    renderTracks();
+    updateBar();
+
+    if (playlistInfo) showToast('Playlist cargada · ' + results.length + ' temas', 'ok');
+  } catch {
+    showToast('No se pudo conectar con el servidor.');
+  } finally {
+    el.skeleton.hidden = true;
+    el.searchGo.disabled = false;
+    el.searchGo.classList.remove('loading');
+    // Si quedó sin resultados (error o búsqueda vacía), restaurar el
+    // placeholder en vez de dejar el área en blanco.
+    if (!el.tracks.children.length && el.rhead.hidden) el.placeholder.hidden = false;
+  }
 }
 
-// ── Selector de carpeta ─────────────────────────────────────
+// ── Render de tracks ─────────────────────────────────────────
+function renderTracks() {
+  el.tracks.innerHTML = '';
+
+  if (state.results.length === 0) {
+    el.rhead.hidden = true;
+    el.placeholder.hidden = false;
+    return;
+  }
+
+  el.rhead.hidden = false;
+  el.placeholder.hidden = true;
+  el.rcount.textContent = state.results.length + ' temas encontrados';
+
+  state.results.forEach((r, i) => {
+    const sel = state.selected.has(r.id);
+    const row = document.createElement('div');
+    row.className = 'track' + (sel ? ' sel' : '');
+    row.style.animationDelay = i * 24 + 'ms';
+    row.dataset.id = r.id;
+
+    const thumbSrc = r.thumbnail || window.PIXEL.cover(r.id);
+    const fallback = `onerror="this.src='${window.PIXEL.cover(r.id)}'"`;
+
+    row.innerHTML =
+      `<span class="track__num">${String(i + 1).padStart(2, '0')}</span>` +
+      `<span class="track__thumb">` +
+        `<img src="${esc(thumbSrc)}" alt="" loading="lazy" ${fallback}>` +
+        (r.duration ? `<span class="track__dur">${esc(r.duration)}</span>` : '') +
+      `</span>` +
+      `<span class="track__info">` +
+        `<span class="track__title">${esc(r.title)}</span>` +
+        `<span class="track__ch">${esc(r.channel)}</span>` +
+      `</span>` +
+      `<span class="track__check">${CHECK}</span>`;
+
+    row.addEventListener('click', () => toggleTrack(r.id));
+    el.tracks.appendChild(row);
+  });
+}
+
+function toggleTrack(id) {
+  state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
+  const row = el.tracks.querySelector(`[data-id="${id}"]`);
+  if (row) row.classList.toggle('sel', state.selected.has(id));
+  updateBar();
+}
+
+function updateBar() {
+  const n = state.selected.size;
+  el.selectAll.textContent =
+    n === state.results.length && n > 0 ? 'Deseleccionar todo' : 'Seleccionar todo';
+  el.actionbar.hidden = n === 0;
+  el.barCount.textContent = n + (n === 1 ? ' tema' : ' temas');
+}
+
+function wireSeg(sel, key) {
+  document.querySelectorAll(`${sel} button`).forEach(b =>
+    b.addEventListener('click', () => {
+      document.querySelectorAll(`${sel} button`).forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      state[key] = b.dataset.val;
+    })
+  );
+}
+
+// ── Seleccionar todo ─────────────────────────────────────────
+function toggleSelectAll() {
+  if (state.selected.size === state.results.length) {
+    state.selected.clear();
+  } else {
+    state.results.forEach(r => state.selected.add(r.id));
+  }
+  renderTracks();
+  updateBar();
+}
+
+// ── Carpeta ──────────────────────────────────────────────────
 async function browseDir() {
-    try {
-        const res = await fetch("/browse_dir");
-        const data = await res.json();
-        if (data.path) {
-            el.destDir.value = data.path;
-        } else if (data.error) {
-            showToast(data.error, "error");
-        }
-    } catch {
-        showToast("No se pudo abrir el selector de carpeta.", "error");
-    }
+  try {
+    const res  = await fetch('/browse_dir');
+    const data = await res.json();
+    if (data.path) el.destDir.value = data.path;
+    else if (data.error) showToast(data.error);
+  } catch { showToast('No se pudo abrir el selector de carpeta.'); }
 }
 
-// ── Descarga ────────────────────────────────────────────────
-async function startDownload() {
-    const items = state.results.filter((r) => state.selected.has(r.id));
-    if (items.length === 0) return;
-
-    setDownloadLoading(true);
-    try {
-        const res = await fetch("/download", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                items,
-                format:   state.format,
-                quality:  state.quality,
-                naming:   state.naming,
-                dest_dir: el.destDir.value.trim(),
-            }),
-        });
-        const data = await res.json();
-        if (data.error) {
-            showToast(data.error, "error");
-            return;
-        }
-
-        state.job = {
-            id: data.job_id,
-            items,
-            active: true,
-            dest: el.destDir.value.trim() || el.destDir.placeholder,
-            format: state.format,
-        };
-        buildProgressList(state.job);
-        showDownloads();
-        pollProgress(data.job_id);
-    } catch (err) {
-        showToast("No se pudo iniciar la descarga.", "error");
-    } finally {
-        setDownloadLoading(false);
-    }
-}
-
-function setDownloadLoading(on) {
-    el.downloadBtn.classList.toggle("is-loading", on);
-    el.downloadBtn.disabled = on;
-}
-
-// ── Panel de descargas (inline) ─────────────────────────────
-function buildProgressList(job) {
-    el.progressList.innerHTML = "";
-    el.overallFill.classList.remove("is-done");
-    el.overallFill.style.width = "0%";
-    el.overallLabel.textContent = `0 de ${job.items.length} listos`;
-
-    el.destNote.hidden = !job.dest;
-    el.destNote.innerHTML = job.dest
-        ? `${FOLDER_SVG}<span class="meta-name">${escapeHtml(job.dest)}</span>`
-        : "";
-
-    job.items.forEach((item) => {
-        const row = document.createElement("div");
-        row.className = "prog-item";
-        row.dataset.id = item.id;
-        row.innerHTML = `
-            <div class="prog-item__top">
-                <span class="prog-item__title">${escapeHtml(item.title)}</span>
-                <span class="prog-item__state">En cola</span>
-            </div>
-            <div class="prog-bar"><div class="prog-bar__fill"></div></div>
-            <div class="prog-item__meta"></div>
-            <div class="prog-item__error" hidden></div>
-        `;
-        el.progressList.appendChild(row);
-    });
-}
-
-function showDownloads() {
-    el.downloads.hidden = false;
-    el.downloadsBtn.hidden = false;
-    el.downloads.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-function hideDownloads() {
-    el.downloads.hidden = true;
-}
-function toggleDownloads() {
-    if (el.downloads.hidden) showDownloads();
-    else hideDownloads();
-}
-
-function pollProgress(jobId) {
-    clearInterval(state.pollTimer);
-    state.pollTimer = setInterval(async () => {
-        try {
-            const res = await fetch(`/progress/${jobId}`);
-            if (!res.ok) { clearInterval(state.pollTimer); return; }
-            const job = await res.json();
-            renderProgress(job);
-            if (job.overall === "done") {
-                clearInterval(state.pollTimer);
-                onJobDone(job);
-            }
-        } catch (err) {
-            clearInterval(state.pollTimer);
-        }
-    }, 500);
-}
-
-const STATE_LABELS = {
-    queued:      { txt: "En cola",      cls: "" },
-    downloading: { txt: "Bajando",      cls: "s-download" },
-    converting:  { txt: "Convirtiendo", cls: "s-convert" },
-    tagging:     { txt: "Etiquetando",  cls: "s-convert" },
-    done:        { txt: "Listo",        cls: "s-done" },
-    error:       { txt: "Error",        cls: "s-error" },
+// ── Descarga ─────────────────────────────────────────────────
+const STATE_PHASE = {
+  downloading: 'download', converting: 'convert', tagging: 'convert',
+  done: 'done', error: 'error', queued: 'queued',
+};
+const PHASE_LABEL = {
+  queued: 'En cola', download: 'Bajando', convert: 'Convirtiendo', done: 'Listo', error: 'Error',
 };
 
-function renderProgress(job) {
-    let done = 0, errors = 0, effSum = 0;
+async function startDownload() {
+  const items = state.results.filter(r => state.selected.has(r.id));
+  if (!items.length) return;
 
-    job.items.forEach((item) => {
-        if (item.state === "done") done++;
-        else if (item.state === "error") errors++;
-        effSum += (item.state === "done" || item.state === "error") ? 100 : (item.percent || 0);
+  el.barGo.disabled = true;
+  el.barGo.classList.add('loading');
 
-        const row = el.progressList.querySelector(`.prog-item[data-id="${item.id}"]`);
-        if (row) updateProgRow(row, item, job);
+  try {
+    const res  = await fetch('/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items,
+        format:   state.format,
+        quality:  state.quality,
+        naming:   state.naming,
+        dest_dir: el.destDir.value.trim(),
+      }),
     });
+    const data = await res.json();
+    if (data.error) { showToast(data.error); return; }
 
-    const total = job.items.length || 1;
-    el.overallFill.style.width = `${Math.round(effSum / total)}%`;
-
-    const allDone = (done + errors) === job.items.length;
-    if (allDone) el.overallFill.classList.add("is-done");
-
-    el.overallLabel.textContent = allDone
-        ? `Completado · ${done} de ${job.items.length}${errors ? ` · ${errors} con error` : ""}`
-        : `${done} de ${job.items.length} listos${errors ? ` · ${errors} con error` : ""}`;
+    state.job = { id: data.job_id, items, format: state.format };
+    el.deckTool.hidden = false;   // habilitar el botón para reabrir el panel
+    openDeck(items);
+    pollProgress(data.job_id);
+  } catch {
+    showToast('No se pudo iniciar la descarga.');
+  } finally {
+    el.barGo.disabled = false;
+    el.barGo.classList.remove('loading');
+  }
 }
 
-function updateProgRow(row, item, job) {
-    const stateEl = row.querySelector(".prog-item__state");
-    const fill    = row.querySelector(".prog-bar__fill");
-    const metaEl  = row.querySelector(".prog-item__meta");
-    const errEl   = row.querySelector(".prog-item__error");
+// ── Deck (panel de descarga) ──────────────────────────────────
+function openDeck(items) {
+  el.scrim.hidden = false;
+  el.deck.hidden  = false;
+  el.deckSub.textContent = items.length + ' temas · ' + state.format.toUpperCase() + ' · ' + state.quality;
 
-    const label = STATE_LABELS[item.state] || STATE_LABELS.queued;
-    stateEl.textContent = label.txt;
-    stateEl.className = `prog-item__state ${label.cls}`;
+  buildVU(el.masterVU, VU_SEGS_MASTER);
+  el.masterPct.textContent = '0%';
+  el.deckList.innerHTML = '';
 
-    row.classList.toggle("is-done", item.state === "done");
-    row.classList.toggle("is-error", item.state === "error");
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'dtrack';
+    row.dataset.id = item.id;
+    row.innerHTML =
+      `<div class="dtrack__top">` +
+        `<span class="dtrack__title">${esc(item.title)}</span>` +
+        `<span class="dtrack__state s-queued">En cola</span>` +
+      `</div>` +
+      `<div class="vu"></div>` +
+      `<div class="dtrack__meta">Esperando turno…</div>` +
+      `<div class="dtrack__err-msg" hidden></div>`;
+    el.deckList.appendChild(row);
+    buildVU(row.querySelector('.vu'));
+  });
+}
 
-    // — barra sólida, siempre con un ancho concreto —
-    fill.className = "prog-bar__fill";
-    if (item.state === "done") {
-        fill.classList.add("is-done");
-        fill.style.width = "100%";
-    } else if (item.state === "error") {
-        fill.classList.add("is-error");
-        fill.style.width = "100%";
-    } else {
-        // queued=0, downloading=%, converting/tagging=99 (lo fija el backend)
-        fill.style.width = `${item.percent || 0}%`;
-    }
+function closeDeck() {
+  el.scrim.hidden = true;
+  el.deck.hidden  = true;
+}
 
-    // — meta (velocidad / ETA / tamaño / archivo) —
+// Reabre el panel sin tocar el polling: el seguimiento nunca se detuvo, solo
+// se ocultó. Las filas del deck siguen en el DOM y se actualizan igual.
+function reopenDeck() {
+  if (!state.job) return;
+  el.scrim.hidden = false;
+  el.deck.hidden  = false;
+}
+
+// ── Polling de progreso ───────────────────────────────────────
+function pollProgress(jobId) {
+  clearInterval(state.pollTimer);
+  state.pollTimer = setInterval(async () => {
+    try {
+      const res = await fetch(`/progress/${jobId}`);
+      if (!res.ok) { clearInterval(state.pollTimer); return; }
+      const job = await res.json();
+      renderDeck(job);
+      if (job.overall === 'done') {
+        clearInterval(state.pollTimer);
+        onJobDone(job);
+      }
+    } catch { clearInterval(state.pollTimer); }
+  }, POLL_MS);
+}
+
+function renderDeck(job) {
+  let effSum = 0;
+
+  job.items.forEach(item => {
+    const phase = STATE_PHASE[item.state] || 'queued';
+    const pct   = item.state === 'done' || item.state === 'error' ? 100 : (item.percent || 0);
+    effSum += pct;
+
+    const row = el.deckList.querySelector(`.dtrack[data-id="${item.id}"]`);
+    if (!row) return;
+
+    const stEl  = row.querySelector('.dtrack__state');
+    const vuEl  = row.querySelector('.vu');
+    const meta  = row.querySelector('.dtrack__meta');
+    const errEl = row.querySelector('.dtrack__err-msg');
+
+    stEl.className = 'dtrack__state s-' + phase;
+    stEl.textContent = PHASE_LABEL[phase];
+    row.classList.toggle('conv', phase === 'convert');
+    row.classList.toggle('done', phase === 'done');
+    row.classList.toggle('err',  phase === 'error');
+
+    setVU(vuEl, pct);
+
     errEl.hidden = true;
-    metaEl.classList.remove("is-done");
-    metaEl.innerHTML = "";
-
-    if (item.state === "error") {
-        if (item.error) {
-            errEl.hidden = false;
-            errEl.textContent = item.error;
-        }
-    } else if (item.state === "done") {
-        metaEl.classList.add("is-done");
-        metaEl.innerHTML = `${FILE_SVG}<span class="meta-name">${escapeHtml(item.filename || "Guardado")}</span>`;
-    } else if (item.state === "converting") {
-        metaEl.textContent = `Convirtiendo a ${(job.format || "mp3").toUpperCase()}…`;
-    } else if (item.state === "tagging") {
-        metaEl.textContent = "Buscando metadatos…";
-    } else if (item.state === "downloading") {
-        const parts = [];
-        if (item.total) parts.push(`${fmtBytes(item.downloaded)} / ${fmtBytes(item.total)}`);
-        const sp = fmtSpeed(item.speed);
-        if (sp) parts.push(sp);
-        const eta = fmtEta(item.eta);
-        if (eta) parts.push(`faltan ${eta}`);
-        metaEl.innerHTML = parts.length
-            ? parts.map(escapeHtml).join('<span class="dot">·</span>')
-            : "Bajando…";
+    if (phase === 'download') {
+      const parts = [];
+      if (item.total) parts.push(`${fmtBytes(item.downloaded)} / ${fmtBytes(item.total)}`);
+      const sp = fmtSpeed(item.speed); if (sp) parts.push(sp);
+      const eta = fmtEta(item.eta);   if (eta) parts.push(`faltan ${eta}`);
+      meta.textContent = parts.join('  ▸  ') || 'Bajando…';
+    } else if (phase === 'convert') {
+      meta.textContent = `Convirtiendo a ${(job.format || state.format).toUpperCase()}…`;
+    } else if (phase === 'done') {
+      meta.textContent = item.filename ? `✓ ${item.filename}` : '✓ Guardado';
+    } else if (phase === 'error') {
+      meta.textContent = '';
+      if (item.error) { errEl.hidden = false; errEl.textContent = item.error; }
     } else {
-        metaEl.textContent = "En cola";
+      meta.textContent = 'Esperando turno…';
     }
+  });
+
+  const total = job.items.length || 1;
+  const overallPct = Math.round(effSum / total);
+  setVU(el.masterVU, overallPct, VU_SEGS_MASTER);
+  el.masterPct.textContent = overallPct + '%';
 }
 
 function onJobDone(job) {
-    if (state.job) state.job.active = false;
-    const done = job.items.filter((i) => i.state === "done").length;
-    const errors = job.items.filter((i) => i.state === "error").length;
-
-    if (errors && !done) {
-        showToast(errors === 1 ? "No se pudo bajar el archivo." : `No se pudo bajar ninguno de los ${errors}.`, "error");
-    } else if (errors) {
-        showToast(`Listo: ${done} ${done === 1 ? "archivo" : "archivos"} · ${errors} con error.`, "ok");
-    } else {
-        showToast(`Listo: ${done} ${done === 1 ? "archivo guardado" : "archivos guardados"}.`, "ok");
-    }
+  const done   = job.items.filter(i => i.state === 'done').length;
+  const errors = job.items.filter(i => i.state === 'error').length;
+  if (errors && !done) {
+    showToast(errors === 1 ? 'No se pudo bajar el archivo.' : `No se pudo bajar ninguno de los ${errors}.`);
+  } else if (errors) {
+    showToast(`Listo: ${done} archivos · ${errors} con error.`, 'ok');
+  } else {
+    showToast(`¡Listo! ${done} ${done === 1 ? 'archivo guardado' : 'archivos guardados'}.`, 'ok');
+  }
 }
 
-// ── Historial (modal) ───────────────────────────────────────
+// ── Historial ─────────────────────────────────────────────────
 async function openHistory() {
-    el.historyList.innerHTML = '<p class="hist-empty">Cargando…</p>';
-    el.historySub.textContent = "";
-    el.historyModal.hidden = false;
-    try {
-        const res = await fetch("/history");
-        const data = await res.json();
-        renderHistory(data.entries || []);
-    } catch (err) {
-        el.historyList.innerHTML = `<p class="hist-empty">Error al cargar el historial.</p>`;
-    }
+  el.histList.innerHTML = '<p class="hist-empty">Cargando…</p>';
+  el.histSub.textContent = '';
+  el.histModal.hidden = false;
+  try {
+    const res  = await fetch('/history');
+    const data = await res.json();
+    renderHistory(data.entries || []);
+  } catch {
+    el.histList.innerHTML = '<p class="hist-empty">Error al cargar el historial.</p>';
+  }
 }
-function closeHistory() {
-    el.historyModal.hidden = true;
-}
+
+function closeHistory() { el.histModal.hidden = true; }
 
 function renderHistory(entries) {
-    el.historyList.innerHTML = "";
-    el.historySub.textContent = entries.length
-        ? `${entries.length} ${entries.length === 1 ? "tarea" : "tareas"}`
-        : "";
+  el.histList.innerHTML = '';
+  el.histSub.textContent = entries.length
+    ? `${entries.length} ${entries.length === 1 ? 'tarea' : 'tareas'}`
+    : '';
 
-    if (!entries.length) {
-        el.historyList.innerHTML =
-            '<p class="hist-empty">Todavía no hay descargas registradas.</p>';
-        return;
-    }
+  if (!entries.length) {
+    el.histList.innerHTML = '<p class="hist-empty">Todavía no hay descargas registradas.</p>';
+    return;
+  }
 
-    entries.forEach((entry) => {
-        const div = document.createElement("div");
-        div.className = "hist-entry";
-
-        const date = new Date(entry.created * 1000);
-        const dateStr = date.toLocaleDateString("es-AR", {
-            day: "numeric", month: "short", year: "numeric",
-        });
-        const doneCount = entry.items.filter((it) => it.state === "done").length;
-        const total = entry.items.length;
-        const label =
-            total === 1
-                ? escapeHtml(entry.items[0].title)
-                : `${doneCount} de ${total} archivos`;
-
-        div.innerHTML = `
-            <div class="hist-entry__main">
-                <span class="hist-entry__label">${label}</span>
-                <span class="hist-badge">${escapeHtml(entry.format.toUpperCase())}</span>
-            </div>
-            <div class="hist-entry__meta">
-                <span class="hist-entry__date">${dateStr}</span>
-                <span class="hist-entry__dir" title="${escapeHtml(entry.dest_dir)}">${escapeHtml(entry.dest_dir)}</span>
-            </div>
-        `;
-        el.historyList.appendChild(div);
+  entries.forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'hist-entry';
+    const date = new Date(entry.created * 1000).toLocaleDateString('es-AR', {
+      day: 'numeric', month: 'short', year: 'numeric',
     });
+    const done  = entry.items.filter(i => i.state === 'done').length;
+    const total = entry.items.length;
+    const label = total === 1 ? esc(entry.items[0].title) : `${done} de ${total} archivos`;
+    div.innerHTML =
+      `<div class="hist-entry__main">` +
+        `<span class="hist-entry__label">${label}</span>` +
+        `<span class="hist-badge">${esc(entry.format.toUpperCase())}</span>` +
+      `</div>` +
+      `<div class="hist-entry__meta">` +
+        `<span>${date}</span>` +
+        `<span class="hist-entry__dir" title="${esc(entry.dest_dir)}">${esc(entry.dest_dir)}</span>` +
+      `</div>`;
+    el.histList.appendChild(div);
+  });
 }
 
-// ── Toggles ─────────────────────────────────────────────────
-function setupToggle(container, key) {
-    container.addEventListener("click", (e) => {
-        const btn = e.target.closest(".seg");
-        if (!btn) return;
-        container.querySelectorAll(".seg").forEach((b) => b.classList.remove("is-active"));
-        btn.classList.add("is-active");
-        state[key] = btn.dataset[key];
-    });
-}
+// ── Init ─────────────────────────────────────────────────────
+buildVU(el.masterVU, VU_SEGS_MASTER);
 
-// ── Toast ───────────────────────────────────────────────────
-let toastTimer = null;
-function showToast(msg, kind = "error") {
-    el.toast.textContent = msg;
-    el.toast.className = `toast toast--${kind}`;
-    el.toast.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.toast.hidden = true; }, kind === "ok" ? 4000 : 5000);
-}
+window.PIXEL.mountCassette(document.getElementById('brandCassette'));
+window.PIXEL.mountCassette(document.getElementById('heroCassette'));
+window.PIXEL.mountCassette(document.getElementById('placeholderCassette'));
+window.PIXEL.mountReel(el.deckReel);
 
-// ── Campo de búsqueda: botón limpiar ────────────────────────
-function syncClearBtn() {
-    el.clearBtn.hidden = el.query.value.length === 0;
-}
-
-// ── Eventos ─────────────────────────────────────────────────
-el.searchBtn.addEventListener("click", runSearch);
-el.query.addEventListener("keydown", (e) => { if (e.key === "Enter") runSearch(); });
-el.query.addEventListener("input", syncClearBtn);
-el.clearBtn.addEventListener("click", () => {
-    el.query.value = "";
-    syncClearBtn();
-    el.query.focus();
-});
-el.selectAllBtn.addEventListener("click", selectAll);
-el.downloadBtn.addEventListener("click", startDownload);
-el.browseBtn.addEventListener("click", browseDir);
-
-el.downloadsBtn.addEventListener("click", toggleDownloads);
-el.closeDownloads.addEventListener("click", hideDownloads);
-
-el.historyBtn.addEventListener("click", openHistory);
-el.closeHistory.addEventListener("click", closeHistory);
-el.historyBackdrop.addEventListener("click", closeHistory);
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !el.historyModal.hidden) closeHistory();
+el.searchGo.addEventListener('click', runSearch);
+el.query.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+el.selectAll.addEventListener('click', toggleSelectAll);
+el.barGo.addEventListener('click', startDownload);
+el.browseBtn.addEventListener('click', browseDir);
+el.deckClose.addEventListener('click', closeDeck);
+el.deckTool.addEventListener('click', reopenDeck);
+el.scrim.addEventListener('click', closeDeck);
+el.histTool.addEventListener('click', openHistory);
+el.histClose.addEventListener('click', closeHistory);
+el.histScrim.addEventListener('click', closeHistory);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (!el.histModal.hidden) closeHistory(); else if (!el.deck.hidden) closeDeck(); }
 });
 
-setupToggle(el.formatToggle,  "format");
-setupToggle(el.qualityToggle, "quality");
-setupToggle(el.namingToggle,  "naming");
+wireSeg('#segFormat',  'format');
+wireSeg('#segQuality', 'quality');
+wireSeg('#segNaming',  'naming');
 
 el.query.focus();
