@@ -42,6 +42,7 @@ const el = {
   deckList:   document.getElementById('deckList'),
   masterVU:   document.getElementById('masterVU'),
   masterPct:  document.getElementById('masterPct'),
+  deckTool:   document.getElementById('deckTool'),
   histTool:   document.getElementById('histTool'),
   histModal:  document.getElementById('histModal'),
   histScrim:  document.getElementById('histScrim'),
@@ -197,7 +198,6 @@ function renderTracks() {
         `<span class="track__title">${esc(r.title)}</span>` +
         `<span class="track__ch">${esc(r.channel)}</span>` +
       `</span>` +
-      `<span class="track__size">${fmtBytes(r.bytes)}</span>` +
       `<span class="track__check">${CHECK}</span>`;
 
     row.addEventListener('click', () => toggleTrack(r.id));
@@ -283,6 +283,7 @@ async function startDownload() {
     if (data.error) { showToast(data.error); return; }
 
     state.job = { id: data.job_id, items, format: state.format };
+    el.deckTool.hidden = false;   // habilitar el botón para reabrir el panel
     openDeck(items);
     pollProgress(data.job_id);
   } catch {
@@ -323,6 +324,14 @@ function openDeck(items) {
 function closeDeck() {
   el.scrim.hidden = true;
   el.deck.hidden  = true;
+}
+
+// Reabre el panel sin tocar el polling: el seguimiento nunca se detuvo, solo
+// se ocultó. Las filas del deck siguen en el DOM y se actualizan igual.
+function reopenDeck() {
+  if (!state.job) return;
+  el.scrim.hidden = false;
+  el.deck.hidden  = false;
 }
 
 // ── Polling de progreso ───────────────────────────────────────
@@ -466,6 +475,7 @@ el.selectAll.addEventListener('click', toggleSelectAll);
 el.barGo.addEventListener('click', startDownload);
 el.browseBtn.addEventListener('click', browseDir);
 el.deckClose.addEventListener('click', closeDeck);
+el.deckTool.addEventListener('click', reopenDeck);
 el.scrim.addEventListener('click', closeDeck);
 el.histTool.addEventListener('click', openHistory);
 el.histClose.addEventListener('click', closeHistory);

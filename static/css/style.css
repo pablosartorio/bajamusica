@@ -208,7 +208,7 @@ body {
 /* ── Tape-deck rows ──────────────────────────────────────────── */
 .tracks { display: flex; flex-direction: column; gap: 12px; }
 .track {
-  display: grid; grid-template-columns: 34px 56px 1fr auto 28px;
+  display: grid; grid-template-columns: 34px 56px 1fr 28px;
   align-items: center; gap: 15px;
   background: var(--card); border: 2px solid var(--ink); border-radius: 12px;
   padding: 12px 14px; cursor: pointer;
@@ -218,8 +218,7 @@ body {
 }
 .track:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 var(--ink); }
 .track.sel { background: var(--orange); color: var(--card); }
-.track.sel .track__ch,
-.track.sel .track__size { color: rgba(251,245,232,0.85); }
+.track.sel .track__ch { color: rgba(251,245,232,0.85); }
 .track__num { font-family: var(--fm); font-size: 0.95rem; font-weight: 700; text-align: center; }
 .track__thumb {
   position: relative; width: 56px; height: 56px;
@@ -235,7 +234,6 @@ body {
 .track__info { min-width: 0; }
 .track__title { display: block; font-family: var(--fd); font-weight: 700; font-size: 1rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track__ch { display: block; font-family: var(--fm); font-size: 0.74rem; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.track__size { font-family: var(--fm); font-size: 0.74rem; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
 .track__check {
   width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 7px;
   background: var(--cream); display: grid; place-items: center; transition: 0.1s; flex-shrink: 0;

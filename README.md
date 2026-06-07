@@ -157,7 +157,8 @@ flowchart TD
   progreso se muestra en un panel inline (no tapa los resultados), con una barra
   global y, por archivo, barra sólida + velocidad/ETA/tamaño. El polling es
   independiente del panel: cerrarlo no detiene el seguimiento (la descarga
-  sigue en el servidor y se guarda en el historial al terminar).
+  sigue en el servidor y se guarda en el historial al terminar). El botón
+  **Descargas** de la barra superior lo vuelve a abrir.
 
 - **Descargas en thread aparte.** El servidor corre con `threaded=True`, así
   el polling responde mientras la descarga avanza. Los items de una tarea se

@@ -45,7 +45,11 @@ def _make_progress_hook(job_id: str, video_id: str):
 def _build_opts(fmt, quality, download_dir, audio_map, video_map, hook):
     """Arma el dict de opciones de yt-dlp según formato y calidad pedidos."""
     opts = {
-        "outtmpl": os.path.join(download_dir, "%(title)s.%(ext)s"),
+        # Incluimos el id del video para evitar que dos videos con el mismo
+        # título (o re-descargas) se pisen entre sí. Para los esquemas de
+        # nombre que no son "youtube", metadata.apply() renombra después y el
+        # id desaparece.
+        "outtmpl": os.path.join(download_dir, "%(title)s [%(id)s].%(ext)s"),
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,

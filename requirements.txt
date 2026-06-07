@@ -1,4 +1,4 @@
 flask>=3.0
-yt-dlp>=2024.0
+yt-dlp>=2025.1   # mantener fresco: yt-dlp necesita updates para seguir andando con YouTube
 musicbrainzngs>=0.7
 mutagen>=1.47
