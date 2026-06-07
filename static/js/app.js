@@ -157,6 +157,9 @@ async function runSearch() {
     el.skeleton.hidden = true;
     el.searchGo.disabled = false;
     el.searchGo.classList.remove('loading');
+    // Si quedó sin resultados (error o búsqueda vacía), restaurar el
+    // placeholder en vez de dejar el área en blanco.
+    if (!el.tracks.children.length && el.rhead.hidden) el.placeholder.hidden = false;
   }
 }
 

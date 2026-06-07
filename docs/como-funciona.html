@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sonido · Cómo funciona el sistema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#f1e7d3; --cream-2:#e8dabe; --card:#fbf5e8; --ink:#211c14;
+    --ink-2:#5b5142; --muted:#877b66; --orange:#e0532a; --orange-2:#c4441d;
+    --teal:#1f8a6d; --red:#c0392b; --gold:#f4b73d;
+    --fd:'Bricolage Grotesque',system-ui,sans-serif;
+    --fm:'Space Mono',ui-monospace,monospace;
+    --shadow:4px 4px 0 var(--ink); --shadow-sm:3px 3px 0 var(--ink);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--fd); color:var(--ink); background:var(--cream);
+    background-image:repeating-linear-gradient(0deg,transparent 0 38px,rgba(33,28,20,.025) 38px 39px);
+    line-height:1.55; -webkit-font-smoothing:antialiased; padding-bottom:80px;
+  }
+  a{color:var(--orange-2);text-underline-offset:3px}
+  code,.mono{font-family:var(--fm)}
+  .wrap{max-width:920px;margin:0 auto;padding:0 24px}
+
+  /* Topbar */
+  header.top{
+    position:sticky;top:0;z-index:10;background:var(--cream);
+    border-bottom:2px solid var(--ink);padding:14px 24px;
+    display:flex;align-items:center;gap:12px;justify-content:center;
+  }
+  .badge{
+    width:40px;height:26px;background:var(--orange);border:2px solid var(--ink);
+    border-radius:6px;box-shadow:var(--shadow-sm);position:relative;flex-shrink:0;
+  }
+  .badge::before,.badge::after{content:'';position:absolute;top:50%;width:8px;height:8px;
+    border-radius:50%;background:var(--card);border:1.5px solid var(--ink);transform:translateY(-50%)}
+  .badge::before{left:6px}.badge::after{right:6px}
+  header.top b{font-weight:800;font-size:1.25rem;letter-spacing:-.02em}
+  header.top span{font-family:var(--fm);font-size:.62rem;font-weight:700;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--orange-2);border:1.5px solid var(--orange);padding:3px 7px;border-radius:5px}
+
+  /* Hero */
+  .hero{text-align:center;padding:46px 0 18px}
+  .hero h1{font-weight:800;font-size:clamp(2rem,5vw,3rem);line-height:1;letter-spacing:-.03em}
+  .hero h1 mark{background:var(--orange);color:var(--card);padding:0 .12em;border-radius:6px}
+  .hero p{font-family:var(--fm);color:var(--ink-2);max-width:560px;margin:14px auto 0;font-size:.9rem}
+
+  /* TOC */
+  .toc{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:26px 0 8px}
+  .toc a{font-family:var(--fm);font-size:.72rem;font-weight:700;text-decoration:none;color:var(--ink);
+    background:var(--card);border:2px solid var(--ink);border-radius:8px;padding:6px 11px;box-shadow:var(--shadow-sm)}
+  .toc a:hover{background:var(--orange);color:var(--card)}
+
+  /* Sections */
+  section{margin-top:46px}
+  h2{font-weight:800;font-size:1.6rem;letter-spacing:-.02em;display:flex;align-items:center;gap:11px}
+  h2 .n{font-family:var(--fm);font-size:.8rem;font-weight:700;background:var(--ink);color:var(--cream);
+    width:30px;height:30px;display:grid;place-items:center;border-radius:7px;flex-shrink:0}
+  h2 + p{margin-top:10px}
+  section > p{color:var(--ink-2);margin-top:8px}
+  h3{font-weight:800;font-size:1.05rem;margin:22px 0 6px}
+
+  .card{background:var(--card);border:2px solid var(--ink);border-radius:13px;
+    padding:18px 20px;box-shadow:var(--shadow);margin-top:18px}
+  .grid{display:grid;gap:14px;margin-top:18px}
+  @media(min-width:640px){.grid.c2{grid-template-columns:1fr 1fr}}
+  .mod{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+  .mod h4{font-family:var(--fm);font-size:.82rem;font-weight:700;color:var(--orange-2);margin-bottom:6px}
+  .mod p{font-size:.9rem;color:var(--ink-2)}
+  .mod .file{font-family:var(--fm);font-size:.72rem;color:var(--muted);display:block;margin-top:8px}
+
+  ul.clean{margin:10px 0 0 0;padding-left:0;list-style:none}
+  ul.clean li{position:relative;padding-left:22px;margin:7px 0;font-size:.93rem;color:var(--ink-2)}
+  ul.clean li::before{content:'▸';position:absolute;left:4px;color:var(--orange);font-weight:700}
+  ul.clean li b{color:var(--ink)}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse;margin-top:18px;background:var(--card);
+    border:2px solid var(--ink);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  th,td{padding:10px 13px;text-align:left;border-bottom:1.5px solid var(--cream-2);font-size:.86rem;vertical-align:top}
+  th{background:var(--ink);color:var(--cream);font-family:var(--fm);font-size:.72rem;
+    letter-spacing:.06em;text-transform:uppercase}
+  tr:last-child td{border-bottom:none}
+  td .m{font-family:var(--fm);font-weight:700;color:var(--orange-2);white-space:nowrap}
+  td code{font-size:.82rem;background:var(--cream);padding:1px 5px;border-radius:4px}
+
+  /* Pills / states */
+  .states{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px}
+  .pill{font-family:var(--fm);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:5px 10px;border-radius:6px;border:2px solid var(--ink)}
+  .pill.q{background:var(--cream);color:var(--ink-2)}
+  .pill.d{background:var(--orange);color:var(--card)}
+  .pill.c{background:var(--gold);color:var(--ink)}
+  .pill.t{background:#caa46a;color:var(--ink)}
+  .pill.ok{background:var(--teal);color:var(--card)}
+  .pill.e{background:var(--red);color:var(--card)}
+  .arrow{color:var(--muted);font-weight:700;font-family:var(--fm)}
+
+  /* Flow boxes */
+  .flow{display:grid;gap:0;margin-top:20px}
+  .lane{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+  .step{flex:1;min-width:150px;background:var(--card);border:2px solid var(--ink);border-radius:11px;
+    padding:13px 15px;box-shadow:var(--shadow-sm);margin:7px}
+  .step .k{font-family:var(--fm);font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--orange-2)}
+  .step .v{font-weight:700;font-size:.95rem;margin-top:3px}
+  .step .d{font-family:var(--fm);font-size:.72rem;color:var(--muted);margin-top:5px}
+  .down{text-align:center;color:var(--orange);font-size:1.3rem;line-height:1;margin:2px 0}
+
+  .note{border-left:5px solid var(--orange);background:var(--cream-2);border-radius:0 11px 11px 0;
+    padding:13px 16px;margin-top:18px;font-size:.9rem}
+  .note b{color:var(--orange-2)}
+  .ok-note{border-left-color:var(--teal)}
+  .ok-note b{color:var(--teal)}
+
+  pre{background:var(--ink);color:var(--cream);border-radius:11px;padding:15px 17px;margin-top:16px;
+    overflow-x:auto;font-family:var(--fm);font-size:.78rem;line-height:1.5;box-shadow:var(--shadow-sm)}
+  pre .c{color:#caa46a}
+
+  footer{margin-top:60px;text-align:center;font-family:var(--fm);font-size:.74rem;color:var(--muted)}
+  hr.sep{border:none;border-top:2px dashed var(--cream-2);margin:0}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="badge"></span>
+  <b>Sonido</b>
+  <span>cómo funciona</span>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <h1>Cómo funciona <mark>todo el sistema</mark></h1>
+    <p>Sonido es un descargador de YouTube con interfaz web local. Buscás o pegás
+    una playlist, elegís qué bajar y lo guardás como MP3/MP4. Este documento explica
+    la arquitectura, el ciclo de una descarga y el empaquetado de Windows.</p>
+  </div>
+
+  <nav class="toc">
+    <a href="#vista">Vista general</a>
+    <a href="#arq">Arquitectura</a>
+    <a href="#flujo">Flujo de uso</a>
+    <a href="#endpoints">Endpoints</a>
+    <a href="#ciclo">Ciclo de descarga</a>
+    <a href="#backend">Backend</a>
+    <a href="#frontend">Frontend</a>
+    <a href="#windows">Windows (.exe)</a>
+    <a href="#datos">Datos & config</a>
+  </nav>
+
+  <!-- ───────────────────────── -->
+  <section id="vista">
+    <h2><span class="n">1</span> Vista general</h2>
+    <p>Una sola página servida por <b>Flask</b> en <code>127.0.0.1:5000</code>. Nada sale
+    a internet salvo las requests a YouTube (vía <code>yt-dlp</code>) y, opcionalmente,
+    a MusicBrainz para enriquecer metadatos. La conversión de audio/video la hace
+    <code>ffmpeg</code> localmente.</p>
+    <div class="grid c2">
+      <div class="mod"><h4>3 piezas</h4><p>Un servidor Flask fino, un paquete <code>core</code>
+        con toda la lógica, y un frontend vanilla (HTML+CSS+JS, sin frameworks ni build).</p></div>
+      <div class="mod"><h4>Sin estado en disco… casi</h4><p>El estado de las tareas vive en
+        memoria; lo único que se persiste es el historial de descargas completadas en
+        un JSON.</p></div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="arq">
+    <h2><span class="n">2</span> Arquitectura</h2>
+    <p>El backend está <b>desacoplado del frontend</b>: el paquete <code>core</code> no sabe
+    nada de Flask. Las rutas en <code>app.py</code> son finas — reciben, validan y delegan.</p>
+
+    <div class="flow">
+      <div class="lane">
+        <div class="step"><div class="k">Navegador</div><div class="v">index.html + app.js</div>
+          <div class="d">UI vanilla · fetch a la API · polling de progreso</div></div>
+      </div>
+      <div class="down">⇅ HTTP (JSON)</div>
+      <div class="lane">
+        <div class="step"><div class="k">Servidor</div><div class="v">app.py · Flask</div>
+          <div class="d">rutas finas: /, /search, /download, /progress, /history, /browse_dir, /expand_playlist</div></div>
+      </div>
+      <div class="down">↓ delega en</div>
+      <div class="lane">
+        <div class="step"><div class="k">core</div><div class="v">search.py</div><div class="d">busca en YouTube</div></div>
+        <div class="step"><div class="k">core</div><div class="v">playlist.py</div><div class="d">expande playlists</div></div>
+        <div class="step"><div class="k">core</div><div class="v">download.py</div><div class="d">descarga + conversión</div></div>
+      </div>
+      <div class="lane">
+        <div class="step"><div class="k">core</div><div class="v">jobs.py</div><div class="d">estado de tareas + historial</div></div>
+        <div class="step"><div class="k">core</div><div class="v">metadata.py</div><div class="d">MusicBrainz + ID3 + renombrado</div></div>
+        <div class="step"><div class="k">core</div><div class="v">util.py</div><div class="d">helpers (formato de duración)</div></div>
+      </div>
+      <div class="down">↓ herramientas externas</div>
+      <div class="lane">
+        <div class="step"><div class="k">externo</div><div class="v">yt-dlp → YouTube</div><div class="d">resuelve y baja streams</div></div>
+        <div class="step"><div class="k">externo</div><div class="v">ffmpeg</div><div class="d">convierte a MP3 / mergea MP4</div></div>
+        <div class="step"><div class="k">externo</div><div class="v">MusicBrainz</div><div class="d">artista / álbum / título</div></div>
+      </div>
+    </div>
+
+    <div class="note ok-note"><b>Por qué así:</b> mantener <code>core</code> independiente de Flask
+    permite reusarlo desde una CLI, otra API o tests, sin tocar el servidor.</div>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="flujo">
+    <h2><span class="n">3</span> Flujo de uso</h2>
+    <p>De punta a punta, lo que pasa cuando el usuario baja música:</p>
+    <div class="flow">
+      <div class="lane"><div class="step"><div class="k">1 · buscar</div><div class="v">Escribe o pega URL</div>
+        <div class="d">El frontend detecta si es playlist (<code>?list=</code>) y enruta a <code>/expand_playlist</code>; si no, a <code>/search</code>.</div></div></div>
+      <div class="down">↓</div>
+      <div class="lane"><div class="step"><div class="k">2 · elegir</div><div class="v">Tilda temas + opciones</div>
+        <div class="d">Formato (MP3/MP4), calidad, esquema de nombre y carpeta destino (<code>/browse_dir</code> abre el diálogo nativo).</div></div></div>
+      <div class="down">↓</div>
+      <div class="lane"><div class="step"><div class="k">3 · descargar</div><div class="v">POST /download</div>
+        <div class="d">El server crea un <code>job_id</code> y lanza un <b>thread</b> de descarga. Responde el id al instante.</div></div></div>
+      <div class="down">↓</div>
+      <div class="lane"><div class="step"><div class="k">4 · seguir</div><div class="v">GET /progress/&lt;job_id&gt;</div>
+        <div class="d">El frontend pollea cada <b>500 ms</b> y pinta el panel (deck) con barras VU por archivo + barra global.</div></div></div>
+      <div class="down">↓</div>
+      <div class="lane"><div class="step"><div class="k">5 · guardar</div><div class="v">Historial</div>
+        <div class="d">Al terminar, el job se persiste en <code>history.json</code>. El botón <b>Historial</b> lo muestra.</div></div></div>
+    </div>
+    <div class="note"><b>Polling, no WebSockets:</b> para un caso local, pollear <code>/progress</code> es
+    más simple y robusto. Cerrar el panel no detiene el seguimiento: la descarga sigue en el
+    servidor y se guarda igual.</div>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="endpoints">
+    <h2><span class="n">4</span> Endpoints</h2>
+    <table>
+      <tr><th>Método · ruta</th><th>Qué hace</th><th>Responde</th></tr>
+      <tr><td><span class="m">GET /</span></td><td>Sirve la página (UI), inyecta la carpeta destino por defecto.</td><td>HTML</td></tr>
+      <tr><td><span class="m">GET /search</span></td><td>Busca <code>?q=</code> en YouTube (o resuelve una URL de video).</td><td><code>{results:[…]}</code></td></tr>
+      <tr><td><span class="m">GET /expand_playlist</span></td><td>Expande una playlist <code>?url=</code> a sus entradas.</td><td><code>{title, results:[…]}</code></td></tr>
+      <tr><td><span class="m">POST /download</span></td><td>Valida y arranca una tarea de descarga en un thread.</td><td><code>{job_id}</code></td></tr>
+      <tr><td><span class="m">GET /progress/&lt;id&gt;</span></td><td>Estado actual de la tarea (para polling).</td><td><code>{overall, items:[…]}</code></td></tr>
+      <tr><td><span class="m">GET /history</span></td><td>Historial de descargas completadas.</td><td><code>{entries:[…]}</code></td></tr>
+      <tr><td><span class="m">GET /browse_dir</span></td><td>Abre el diálogo nativo de carpeta (tkinter).</td><td><code>{path}</code> ó <code>{error}</code></td></tr>
+    </table>
+    <div class="note"><b>Validación de <code>/download</code>:</b> rechaza con <code>400</code> si no hay items,
+    si ningún item trae <code>id</code> válido, o si el formato no está soportado. La calidad inválida
+    cae a <code>"high"</code>.</div>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="ciclo">
+    <h2><span class="n">5</span> Ciclo de una descarga</h2>
+    <p>Cada item de una tarea recorre estos estados (se procesan <b>secuencialmente</b>). El frontend
+    los mapea a las fases que ves en el panel:</p>
+    <div class="states">
+      <span class="pill q">queued</span><span class="arrow">→</span>
+      <span class="pill d">downloading</span><span class="arrow">→</span>
+      <span class="pill c">converting</span><span class="arrow">→</span>
+      <span class="pill t">tagging*</span><span class="arrow">→</span>
+      <span class="pill ok">done</span>
+      <span class="arrow">&nbsp;&nbsp;|&nbsp;&nbsp;cualquier fallo →</span>
+      <span class="pill e">error</span>
+    </div>
+    <p style="margin-top:12px;font-family:var(--fm);font-size:.78rem;color:var(--muted)">
+      * <b>tagging</b> solo ocurre si el esquema de nombre no es "youtube": ahí se consulta MusicBrainz,
+      se escriben las etiquetas ID3 y se renombra el archivo.</p>
+
+    <div class="note ok-note"><b>Robustez:</b> el job se <b>cierra siempre</b> al final
+    (<code>set_overall("done")</code> en un <code>finally</code>). Si la carpeta destino es
+    inválida o sin permisos, todos los items se marcan <code>error</code> en vez de dejar la UI
+    polleando para siempre.</div>
+
+    <h3>Cómo llega el progreso</h3>
+    <ul class="clean">
+      <li><b>yt-dlp → hook:</b> mientras baja, un <i>progress hook</i> reporta bytes, velocidad y ETA a <code>jobs.update_item</code>.</li>
+      <li><b>jobs.py</b> guarda el estado en un dict en memoria, protegido por un <code>Lock</code>.</li>
+      <li><b>El frontend</b> pide <code>/progress/&lt;id&gt;</code> cada 500 ms y vuelve a pintar el panel.</li>
+      <li><b>Al terminar</b>, <code>set_overall("done")</code> persiste el job en el historial.</li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="backend">
+    <h2><span class="n">6</span> Backend · paquete <code>core</code></h2>
+    <div class="grid c2">
+      <div class="mod"><h4>search.py</h4><p>Busca en YouTube con <code>yt-dlp</code> en modo
+        <i>flat</i> (rápido, sin resolver streams). Si la query es una URL de video, la resuelve directo.</p>
+        <span class="file">core/search.py</span></div>
+      <div class="mod"><h4>playlist.py</h4><p>Expande una playlist completa a sus entradas
+        (<code>extract_flat="in_playlist"</code>), devolviendo título + lista de videos.</p>
+        <span class="file">core/playlist.py</span></div>
+      <div class="mod"><h4>download.py</h4><p>El corazón: arma las opciones de <code>yt-dlp</code>
+        según formato/calidad, descarga, dispara <code>ffmpeg</code> para convertir y reporta progreso.</p>
+        <span class="file">core/download.py</span></div>
+      <div class="mod"><h4>jobs.py</h4><p>Registro <i>thread-safe</i> del estado de cada tarea
+        (en memoria) y persistencia del historial en disco (máx. 500 entradas).</p>
+        <span class="file">core/jobs.py</span></div>
+      <div class="mod"><h4>metadata.py</h4><p>Limpia el título de YouTube, busca en MusicBrainz,
+        escribe etiquetas ID3 (MP3) y renombra el archivo. Todo <i>best-effort</i>: nunca rompe la descarga.</p>
+        <span class="file">core/metadata.py</span></div>
+      <div class="mod"><h4>util.py</h4><p>Helpers reutilizables, como formatear segundos a
+        <code>m:ss</code> / <code>h:mm:ss</code>.</p>
+        <span class="file">core/util.py</span></div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="frontend">
+    <h2><span class="n">7</span> Frontend</h2>
+    <p>HTML + CSS + JS vanilla, una sola página, cero build. La estética es "cassette + pixel art".</p>
+    <div class="grid c2">
+      <div class="mod"><h4>index.html</h4><p>El markup, con plantillas Jinja
+        (<code>{{ url_for }}</code>, <code>{{ default_dir }}</code>). Topbar, hero, controles,
+        resultados, panel de descarga (deck) y modal de historial.</p>
+        <span class="file">templates/index.html</span></div>
+      <div class="mod"><h4>app.js</h4><p>Toda la lógica: búsqueda, render de tracks, selección,
+        POST de descarga, polling, panel de progreso, historial y toasts.</p>
+        <span class="file">static/js/app.js</span></div>
+      <div class="mod"><h4>pixel-art.js</h4><p>Motor de pixel-art en <code>&lt;canvas&gt;</code>:
+        dibuja el cassette animado, los carretes girando y "covers" generados por hash del id del video.</p>
+        <span class="file">static/js/pixel-art.js</span></div>
+      <div class="mod"><h4>style.css</h4><p>Variables de color (crema + bermellón), tipografías
+        (Bricolage Grotesque + Space Mono), sombras duras y los medidores VU del panel.</p>
+        <span class="file">static/css/style.css</span></div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="windows">
+    <h2><span class="n">8</span> Empaquetado Windows (.exe)</h2>
+    <p><code>build.bat</code> genera un ejecutable autónomo con <b>PyInstaller</b> (modo <i>onedir</i>),
+    bundleando Python, las dependencias y <code>ffmpeg</code>. La PC destino no necesita instalar nada.</p>
+    <pre><span class="c"># build.bat hace, en orden:</span>
+1. crea un venv de build aislado
+2. instala dependencias + PyInstaller
+3. baja ffmpeg.exe / ffprobe.exe  (_get_ffmpeg.py)
+4. arma el bundle             (bajamusica.spec)
+   → dist\bajamusica\bajamusica.exe</pre>
+    <div class="note"><b>La trampa de PyInstaller 6.x:</b> en modo <i>onedir</i>, los binarios y
+    datos NO quedan al lado del <code>.exe</code> sino dentro de una subcarpeta <code>_internal\</code>.
+    Por eso las rutas se resuelven con <code>sys._MEIPASS</code> (no con <code>sys.executable</code>):
+    <ul class="clean">
+      <li><b>ffmpeg</b> → <code>config.FFMPEG_LOCATION</code> busca el binario en <code>_MEIPASS</code>.</li>
+      <li><b>templates / static</b> → <code>app._ROOT</code> también sale de <code>_MEIPASS</code>.</li>
+    </ul>
+    Si no, yt-dlp no encuentra ffmpeg y los archivos se bajan pero <b>no se convierten a MP3</b>.</div>
+  </section>
+
+  <!-- ───────────────────────── -->
+  <section id="datos">
+    <h2><span class="n">9</span> Datos & configuración</h2>
+    <ul class="clean">
+      <li><b>Config central:</b> todo lo ajustable (puerto, carpeta destino, calidades, límite de
+        búsqueda, ruta del historial) vive en <code>config.py</code>.</li>
+      <li><b>Carpeta destino por defecto:</b> <code>~/Music/YT-Downloads</code>
+        (en Windows, <code>C:\Users\…\Music\YT-Downloads</code>). Se puede cambiar desde la UI.</li>
+      <li><b>Historial:</b> Linux → <code>~/.local/share/bajamusica/history.json</code> ·
+        Windows → <code>%APPDATA%\bajamusica\history.json</code>. Máximo 500 entradas.</li>
+      <li><b>Búsqueda:</b> hasta <code>MAX_SEARCH_RESULTS = 30</code> resultados.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <hr class="sep" style="margin-bottom:24px">
+    Sonido · documento generado para explicar la arquitectura del proyecto.<br>
+    Uso personal — descargá solo contenido sobre el que tengas derechos.
+  </footer>
+
+</div>
+</body>
+</html>

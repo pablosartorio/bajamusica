@@ -47,6 +47,25 @@ servidor. El navegador se abre solo en `http://127.0.0.1:5000`.
 
 ---
 
+## Windows (.exe)
+
+Para generar un ejecutable autónomo (no requiere Python en la PC destino):
+
+```
+build.bat
+```
+
+Empaqueta todo con **PyInstaller** en `dist\bajamusica\`, incluyendo `ffmpeg`.
+El detalle completo está en [`README-windows.md`](README-windows.md).
+
+> **Nota técnica:** PyInstaller 6.x (modo *onedir*) deja los binarios y datos
+> dentro de una subcarpeta `_internal\`, no junto al `.exe`. Por eso las rutas
+> de `ffmpeg` (`config.py`) y de los templates/static (`app.py`) se resuelven
+> vía `sys._MEIPASS`. Si no, yt-dlp no encuentra ffmpeg y los archivos se bajan
+> pero **no se convierten a MP3**.
+
+---
+
 ## Estructura
 
 ```
@@ -61,13 +80,25 @@ bajamusica/
 │   ├── metadata.py        #   lookup y escritura de etiquetas vía MusicBrainz
 │   └── util.py            #   helpers
 ├── templates/
-│   └── index.html         # la UI
+│   └── index.html         # la UI (Jinja: url_for / default_dir)
 ├── static/
 │   ├── css/style.css
-│   └── js/app.js
+│   └── js/
+│       ├── app.js         # lógica de la UI (búsqueda, descarga, polling…)
+│       └── pixel-art.js   # render del cassette/carretes y covers generados
+├── docs/
+│   └── como-funciona.html # explicación visual de todo el sistema
 ├── requirements.txt
-└── run.sh                 # lanzador
+├── run.sh                 # lanzador (Linux/macOS)
+├── build.bat              # build del .exe de Windows (PyInstaller)
+├── bajamusica.spec        # receta de empaquetado PyInstaller
+├── _get_ffmpeg.py         # baja ffmpeg/ffprobe para el bundle de Windows
+└── README-windows.md      # how-to de instalación en Windows
 ```
+
+> **¿Cómo funciona todo junto?** Abrí [`docs/como-funciona.html`](docs/como-funciona.html)
+> en el navegador para un recorrido visual de la arquitectura, el ciclo de una
+> descarga y el empaquetado de Windows.
 
 ---
 
@@ -75,7 +106,7 @@ bajamusica/
 
 ```mermaid
 flowchart TD
-    U([Usuario]) -->|escribe búsqueda| B[POST /search]
+    U([Usuario]) -->|escribe búsqueda| B[GET /search]
     U -->|pega URL de playlist| PL[GET /expand_playlist]
     B --> S[core/search.py\nbusca en YouTube]
     PL --> PS[core/playlist.py\nextrae entradas flat]
@@ -125,8 +156,8 @@ flowchart TD
   500ms. Es más robusto y simple que WebSockets/SSE para un caso local. El
   progreso se muestra en un panel inline (no tapa los resultados), con una barra
   global y, por archivo, barra sólida + velocidad/ETA/tamaño. El polling es
-  independiente del panel: ocultarlo no detiene el seguimiento, y el botón
-  **Descargas** lo vuelve a mostrar.
+  independiente del panel: cerrarlo no detiene el seguimiento (la descarga
+  sigue en el servidor y se guarda en el historial al terminar).
 
 - **Descargas en thread aparte.** El servidor corre con `threaded=True`, así
   el polling responde mientras la descarga avanza. Los items de una tarea se

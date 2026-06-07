@@ -62,13 +62,20 @@ def download():
     quality = data.get("quality", "high")
     naming  = data.get("naming", "youtube")
 
-    raw_dir = data.get("dest_dir", "").strip()
+    raw_dir = (data.get("dest_dir") or "").strip()
     dest_dir = Path(raw_dir).expanduser() if raw_dir else config.DOWNLOAD_DIR
 
-    if not items:
+    if not isinstance(items, list) or not items:
         return jsonify({"error": "No se seleccionó ningún item"}), 400
+    # Quedarnos solo con items bien formados (dict con id): evita un 500 más
+    # adelante en create_job / run_job ante un POST malformado.
+    items = [it for it in items if isinstance(it, dict) and it.get("id")]
+    if not items:
+        return jsonify({"error": "Ningún item tiene un id válido"}), 400
     if fmt not in config.SUPPORTED_FORMATS:
         return jsonify({"error": f"Formato no soportado: {fmt}"}), 400
+    if quality not in config.AUDIO_QUALITY:
+        quality = "high"
     if naming not in config.NAMING_SCHEMES:
         naming = "youtube"
 
@@ -101,14 +108,20 @@ def browse_dir():
     except ImportError:
         return jsonify({"error": "tkinter no disponible en este sistema"}), 501
 
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes("-topmost", True)
-    folder = filedialog.askdirectory(
-        title="Elegí la carpeta de destino",
-        initialdir=str(config.DOWNLOAD_DIR),
-    )
-    root.destroy()
+    # Tkinter puede fallar en runtime aunque importe (sin display en Linux,
+    # o por correr fuera del main thread). Lo envolvemos para devolver un
+    # error limpio en vez de un 500.
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        folder = filedialog.askdirectory(
+            title="Elegí la carpeta de destino",
+            initialdir=str(config.DOWNLOAD_DIR),
+        )
+        root.destroy()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"No se pudo abrir el selector: {exc}"}), 200
     return jsonify({"path": folder or None})
 
 

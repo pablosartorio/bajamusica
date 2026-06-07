@@ -79,47 +79,65 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map, nam
     Procesa todos los items de una tarea, secuencialmente.
 
     Pensado para correr en un thread aparte. Actualiza el estado de cada item
-    en el registro `jobs` a medida que avanza.
+    en el registro `jobs` a medida que avanza. Cierra SIEMPRE el job al final
+    (incluso ante un fallo inesperado), si no la UI quedaría polleando para
+    siempre.
     """
     download_dir = str(download_dir)
-    os.makedirs(download_dir, exist_ok=True)
-
-    for item in items:
-        vid = item["id"]
-        url = item.get("url") or f"https://www.youtube.com/watch?v={vid}"
-        hook = _make_progress_hook(job_id, vid)
-        opts = _build_opts(fmt, quality, download_dir, audio_map, video_map, hook)
-
-        try:
-            jobs.update_item(job_id, vid, state="downloading", percent=0)
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-
-            final_path = _get_filepath(info)
-            if naming != "youtube" and final_path and final_path.exists():
-                jobs.update_item(job_id, vid, state="tagging", percent=99)
-                meta = metadata.lookup(
-                    item.get("title", ""),
-                    item.get("channel", ""),
-                )
-                if meta:
-                    # apply() puede renombrar: nos quedamos con el path final.
-                    final_path = metadata.apply(final_path, meta, naming, fmt)
-
+    try:
+        os.makedirs(download_dir, exist_ok=True)
+    except OSError as exc:
+        # Carpeta destino inválida o sin permisos: marcar todo como error y
+        # cerrar el job. Si no, set_overall("done") nunca correría.
+        for item in items:
             jobs.update_item(
-                job_id, vid,
-                state="done", percent=100,
-                speed=None, eta=None,
-                filename=final_path.name if final_path else None,
-            )
-        except Exception as exc:  # noqa: BLE001 — queremos capturar cualquier fallo del item
-            jobs.update_item(
-                job_id, vid,
+                job_id, item.get("id", ""),
                 state="error", percent=0, speed=None, eta=None,
-                error=str(exc)[:200],
+                error=f"No se pudo crear la carpeta destino: {exc}"[:200],
             )
+        jobs.set_overall(job_id, "done")
+        return
 
-    jobs.set_overall(job_id, "done")
+    try:
+        for item in items:
+            vid = item.get("id")
+            if not vid:
+                continue
+            url = item.get("url") or f"https://www.youtube.com/watch?v={vid}"
+            hook = _make_progress_hook(job_id, vid)
+            opts = _build_opts(fmt, quality, download_dir, audio_map, video_map, hook)
+
+            try:
+                jobs.update_item(job_id, vid, state="downloading", percent=0)
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+
+                final_path = _get_filepath(info)
+                if naming != "youtube" and final_path and final_path.exists():
+                    jobs.update_item(job_id, vid, state="tagging", percent=99)
+                    meta = metadata.lookup(
+                        item.get("title", ""),
+                        item.get("channel", ""),
+                    )
+                    if meta:
+                        # apply() puede renombrar: nos quedamos con el path final.
+                        final_path = metadata.apply(final_path, meta, naming, fmt)
+
+                jobs.update_item(
+                    job_id, vid,
+                    state="done", percent=100,
+                    speed=None, eta=None,
+                    filename=final_path.name if final_path else None,
+                )
+            except Exception as exc:  # noqa: BLE001 — capturamos cualquier fallo del item
+                jobs.update_item(
+                    job_id, vid,
+                    state="error", percent=0, speed=None, eta=None,
+                    error=str(exc)[:200],
+                )
+    finally:
+        # Pase lo que pase, cerramos el job para que la UI no quede colgada.
+        jobs.set_overall(job_id, "done")
 
 
 def _get_filepath(info: dict | None) -> Path | None:
