@@ -22,8 +22,12 @@ from core import jobs as jobs_mod
 from core import playlist as playlist_mod
 from core import search as search_mod
 
-# Cuando corre desde un bundle PyInstaller los assets están junto al .exe
-_ROOT = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).parent
+# Cuando corre desde un bundle PyInstaller los assets van a sys._MEIPASS
+# (en onedir 6.x es la subcarpeta _internal, NO la carpeta del .exe).
+if getattr(sys, 'frozen', False):
+    _ROOT = Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+else:
+    _ROOT = Path(__file__).parent
 
 app = Flask(
     __name__,

@@ -42,8 +42,25 @@ if sys.platform == "win32":
 else:
     HISTORY_FILE = Path.home() / ".local" / "share" / "bajamusica" / "history.json"
 
-# Ubicación de ffmpeg: en el bundle apunta a la carpeta del .exe donde está ffmpeg.exe
-if getattr(sys, 'frozen', False):
-    FFMPEG_LOCATION = str(Path(sys.executable).parent)
-else:
-    FFMPEG_LOCATION = None  # usar ffmpeg del PATH del sistema
+# Ubicación de ffmpeg dentro del bundle.
+# OJO: PyInstaller >= 6.0 (onedir) deja los binarios en la subcarpeta `_internal`
+# (expuesta como sys._MEIPASS), NO junto al .exe. Probamos las ubicaciones
+# posibles y devolvemos la primera donde ffmpeg realmente exista, así el bundle
+# funciona con cualquier versión/layout de PyInstaller.
+def _find_ffmpeg_location():
+    if not getattr(sys, 'frozen', False):
+        return None  # desarrollo: usar el ffmpeg del PATH del sistema
+    exe_name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+    exe_dir = Path(sys.executable).parent
+    candidates = [
+        Path(getattr(sys, '_MEIPASS', exe_dir)),  # _internal (onedir 6.x) / temp (onefile) / exe dir (5.x)
+        exe_dir,                                   # layout plano antiguo
+        exe_dir / "_internal",                     # por las dudas
+    ]
+    for d in candidates:
+        if (d / exe_name).is_file():
+            return str(d)
+    return str(candidates[0])  # no se encontró: mejor candidato (yt-dlp avisará)
+
+
+FFMPEG_LOCATION = _find_ffmpeg_location()
