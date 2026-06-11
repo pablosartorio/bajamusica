@@ -29,7 +29,8 @@ chmod +x run.sh      # solo la primera vez
 ```
 
 El script crea un entorno virtual, instala las dependencias, y arranca el
-servidor. El navegador se abre solo en `http://127.0.0.1:5000`.
+servidor. El navegador se abre solo en `http://127.0.0.1:5000` (si el puerto
+5000 está ocupado, la app prueba automáticamente con los siguientes).
 
 ### Búsqueda normal
 
@@ -44,6 +45,23 @@ servidor. El navegador se abre solo en `http://127.0.0.1:5000`.
    (ej: `https://www.youtube.com/playlist?list=PLxxxxxx`).
 2. La app la expande automáticamente y selecciona todos los tracks.
 3. Revisá la selección si querés, luego **Descargar**.
+
+Una descarga en curso se puede frenar con el botón **Cancelar** del panel de
+progreso. Los resultados que ya bajaste alguna vez aparecen marcados con
+**"ya bajado"** y la fecha (según el historial).
+
+---
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+El workflow de GitHub Actions (`.github/workflows/ci.yml`) corre lint + tests
+en cada push, y compila el `.exe` de Windows (subido como artifact) en los
+push a `master` o a pedido desde la pestaña *Actions*.
 
 ---
 
@@ -76,8 +94,9 @@ bajamusica/
 │   ├── search.py          #   búsqueda en YouTube
 │   ├── download.py        #   descarga + conversión
 │   ├── playlist.py        #   expansión de playlists completas
-│   ├── jobs.py            #   estado de tareas + historial en disco
+│   ├── jobs.py            #   estado de tareas, cancelación + historial en disco
 │   ├── metadata.py        #   lookup y escritura de etiquetas vía MusicBrainz
+│   ├── version_check.py   #   aviso de yt-dlp desactualizado (vs PyPI)
 │   └── util.py            #   helpers
 ├── templates/
 │   └── index.html         # la UI (Jinja: url_for / default_dir)
@@ -86,9 +105,13 @@ bajamusica/
 │   └── js/
 │       ├── app.js         # lógica de la UI (búsqueda, descarga, polling…)
 │       └── pixel-art.js   # render del cassette/carretes y covers generados
+├── tests/                 # suite de pytest (core + endpoints + seguridad)
+├── .github/workflows/
+│   └── ci.yml             # CI: lint + tests + build del .exe
 ├── docs/
 │   └── como-funciona.html # explicación visual de todo el sistema
 ├── requirements.txt
+├── requirements-dev.txt   # pytest + ruff
 ├── run.sh                 # lanzador (Linux/macOS)
 ├── build.bat              # build del .exe de Windows (PyInstaller)
 ├── bajamusica.spec        # receta de empaquetado PyInstaller
@@ -167,6 +190,21 @@ flowchart TD
 
 - **Frontend sin frameworks.** HTML + CSS + JS vanilla, una sola página. Cero
   build, cero dependencias de node. Fácil de entender y de extender.
+
+- **Protección del servidor local.** Escuchar solo en `127.0.0.1` no alcanza:
+  cualquier página web puede hacer `fetch()` contra localhost (CSRF) o apuntar
+  un dominio propio a `127.0.0.1` (DNS rebinding). `app.py` valida los headers
+  `Host` y `Origin` de cada request y exige `Content-Type: application/json`
+  en `/download` (lo que fuerza preflight CORS en requests cross-origin).
+
+- **yt-dlp envejece.** YouTube cambia seguido y el yt-dlp congelado en el
+  `.exe` deja de funcionar con el tiempo. Al cargar, la UI consulta
+  `/version_check` (que compara contra PyPI, best-effort y cacheado) y muestra
+  un aviso si la versión local tiene más de ~2 meses de atraso.
+
+- **Log a archivo.** El `.exe` corre sin consola: `app.py` loguea a
+  `~/.local/share/bajamusica/bajamusica.log` (o `%APPDATA%\bajamusica\` en
+  Windows) con rotación, para poder diagnosticar fallos en máquinas ajenas.
 
 ---
 

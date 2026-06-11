@@ -8,7 +8,8 @@ from pathlib import Path
 
 # ── Servidor ──────────────────────────────────────────────────────────────
 HOST = "127.0.0.1"
-PORT = 5000
+PORT = 5000                  # puerto preferido; si está ocupado se prueban los siguientes
+PORT_ATTEMPTS = 10           # 5000..5009 antes de rendirse
 OPEN_BROWSER = True          # abrir el navegador automáticamente al arrancar
 
 # ── Descargas ─────────────────────────────────────────────────────────────
@@ -41,6 +42,12 @@ if sys.platform == "win32":
     HISTORY_FILE = _appdata / "bajamusica" / "history.json"
 else:
     HISTORY_FILE = Path.home() / ".local" / "share" / "bajamusica" / "history.json"
+
+# Log de la aplicación (clave para diagnosticar el .exe, que corre sin consola)
+LOG_FILE = HISTORY_FILE.parent / "bajamusica.log"
+
+# Cuánto tiempo retener en memoria un job terminado antes de purgarlo
+JOB_RETENTION_SECONDS = 3600
 
 # Ubicación de ffmpeg dentro del bundle.
 # OJO: PyInstaller >= 6.0 (onedir) deja los binarios en la subcarpeta `_internal`

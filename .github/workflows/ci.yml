@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Tests (pytest)
+        run: pytest -v
+
+  # El build del .exe tarda varios minutos y pesa ~100 MB: solo en master
+  # o cuando se pide a mano desde la pestaña Actions (workflow_dispatch).
+  build-windows:
+    needs: test
+    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt pyinstaller
+      - name: Descargar ffmpeg para el bundle
+        run: python _get_ffmpeg.py
+      - name: Compilar con PyInstaller
+        run: pyinstaller --clean --noconfirm bajamusica.spec
+      - name: Verificar que el bundle quedó completo
+        shell: bash
+        run: |
+          test -f dist/bajamusica/bajamusica.exe
+          test -f dist/bajamusica/_internal/ffmpeg.exe
+          test -d dist/bajamusica/_internal/templates
+          test -d dist/bajamusica/_internal/static
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bajamusica-windows
+          path: dist/bajamusica/
+          retention-days: 30

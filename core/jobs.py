@@ -27,13 +27,16 @@ def create_job(
     """Crea una tarea con los items dados y devuelve su job_id."""
     job_id = uuid.uuid4().hex[:12]
     with _lock:
+        _purge_old_jobs()
         _jobs[job_id] = {
             "id": job_id,
             "created": time.time(),
+            "finished": None,
             "format": fmt,
             "dest_dir": dest_dir,
             "naming": naming,
             "overall": "running",
+            "cancelled": False,
             "items": [
                 {
                     "id": it["id"],
@@ -53,11 +56,42 @@ def create_job(
     return job_id
 
 
+def _purge_old_jobs() -> None:
+    """Elimina jobs terminados hace rato; sin esto _jobs crece sin límite.
+
+    Debe llamarse con _lock ya tomado.
+    """
+    cutoff = time.time() - config.JOB_RETENTION_SECONDS
+    stale = [
+        jid for jid, job in _jobs.items()
+        if job["overall"] == "done" and (job.get("finished") or 0) < cutoff
+    ]
+    for jid in stale:
+        del _jobs[jid]
+
+
 def get_job(job_id: str) -> dict | None:
     """Devuelve una copia profunda del job (segura para serializar a JSON)."""
     with _lock:
         job = _jobs.get(job_id)
         return copy.deepcopy(job) if job else None
+
+
+def cancel_job(job_id: str) -> bool:
+    """Marca el job para cancelación. Devuelve False si el job no existe o ya terminó."""
+    with _lock:
+        job = _jobs.get(job_id)
+        if not job or job["overall"] == "done":
+            return False
+        job["cancelled"] = True
+        return True
+
+
+def is_cancelled(job_id: str) -> bool:
+    """Consulta liviana del flag de cancelación (la usa el progress hook de yt-dlp)."""
+    with _lock:
+        job = _jobs.get(job_id)
+        return bool(job and job.get("cancelled"))
 
 
 def update_item(job_id: str, video_id: str, **fields) -> None:
@@ -80,6 +114,7 @@ def set_overall(job_id: str, status: str) -> None:
             return
         _jobs[job_id]["overall"] = status
         if status == "done":
+            _jobs[job_id]["finished"] = time.time()
             job_snapshot = copy.deepcopy(_jobs[job_id])
 
     if job_snapshot is not None:
@@ -131,3 +166,24 @@ def _save_to_history(job: dict) -> None:
         )
     except Exception:  # noqa: BLE001
         pass
+
+
+def downloaded_index() -> dict[str, float]:
+    """
+    Mapa video_id → timestamp de la descarga exitosa más reciente, según el
+    historial. Lo usa la búsqueda para marcar "ya lo bajaste" en los resultados.
+    """
+    index: dict[str, float] = {}
+    for entry in load_history():
+        created = entry.get("created")
+        if not isinstance(created, (int, float)):
+            continue
+        for item in entry.get("items", []):
+            if not isinstance(item, dict) or item.get("state") != "done":
+                continue
+            vid = item.get("id")
+            # El historial está ordenado del más nuevo al más viejo: la primera
+            # aparición de cada id es la descarga más reciente.
+            if vid and vid not in index:
+                index[vid] = created
+    return index

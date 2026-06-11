@@ -20,6 +20,7 @@ a = Analysis(
         'core.playlist',
         'core.search',
         'core.util',
+        'core.version_check',
         'tkinter',
         'tkinter.filedialog',
         'tkinter.messagebox',

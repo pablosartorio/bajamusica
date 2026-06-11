@@ -36,6 +36,15 @@
   <!-- ── Contenido ─────────────────────────────────────────────── -->
   <main class="shell">
 
+    <!-- Aviso: yt-dlp desactualizado (lo muestra /version_check) -->
+    <div class="updbanner" id="updBanner" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <span class="updbanner__msg" id="updMsg"></span>
+      <button class="updbanner__close" id="updClose" aria-label="Cerrar aviso">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
     <!-- Hero -->
     <section class="hero">
       <span class="hero__strip"><span class="rec"></span> REC · localhost</span>
@@ -141,9 +150,12 @@
         <span class="deck__title">Grabando</span>
         <span class="deck__sub" id="deckSub"></span>
       </div>
-      <button class="deck__close" id="deckClose">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
+      <div class="deck__btns">
+        <button class="deck__cancel" id="deckCancel" hidden>CANCELAR</button>
+        <button class="deck__close" id="deckClose">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
     </header>
     <div class="deck__master">
       <span class="lbl">MASTER</span>
