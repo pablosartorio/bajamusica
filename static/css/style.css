@@ -151,6 +151,22 @@ body {
 .plbanner__title { font-weight: 800; flex: 1; }
 .plbanner__count { font-family: var(--fm); font-size: 0.76rem; }
 
+/* ── Aviso yt-dlp desactualizado ─────────────────────────────── */
+.updbanner {
+  display: flex; align-items: center; gap: 12px; margin-top: 18px;
+  padding: 13px 16px; background: #f4b73d; color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 11px; box-shadow: var(--shadow-sm);
+}
+.updbanner svg { width: 18px; height: 18px; flex-shrink: 0; }
+.updbanner__msg { flex: 1; font-weight: 700; font-size: 0.9rem; line-height: 1.35; }
+.updbanner__close {
+  background: var(--card); border: 2px solid var(--ink); cursor: pointer;
+  width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+  flex-shrink: 0; box-shadow: var(--shadow-sm);
+}
+.updbanner__close:active { transform: translate(2px,2px); box-shadow: none; }
+.updbanner__close svg { width: 14px; height: 14px; }
+
 /* ── Controls ────────────────────────────────────────────────── */
 .controls {
   margin-top: 22px; padding: 18px; background: var(--cream-2);
@@ -234,6 +250,13 @@ body {
 .track__info { min-width: 0; }
 .track__title { display: block; font-family: var(--fd); font-weight: 700; font-size: 1rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track__ch { display: block; font-family: var(--fm); font-size: 0.74rem; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track__got {
+  display: inline-block; font-size: 0.56rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--teal); border: 1.5px solid var(--teal);
+  border-radius: 5px; padding: 1px 6px; margin-left: 7px; vertical-align: 1px;
+}
+.track.sel .track__got { color: rgba(251,245,232,0.9); border-color: rgba(251,245,232,0.9); }
 .track__check {
   width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 7px;
   background: var(--cream); display: grid; place-items: center; transition: 0.1s; flex-shrink: 0;
@@ -307,6 +330,16 @@ body {
 }
 .deck__close:active { transform: translate(2px,2px); box-shadow: none; }
 .deck__close svg { width: 16px; height: 16px; }
+.deck__btns { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.deck__cancel {
+  background: var(--card); border: 2px solid var(--ink); color: var(--red);
+  font-family: var(--fm); font-weight: 700; font-size: 0.66rem; letter-spacing: 0.06em;
+  height: 32px; padding: 0 12px; border-radius: 7px; cursor: pointer;
+  box-shadow: var(--shadow-sm); white-space: nowrap;
+}
+.deck__cancel:hover { background: var(--red); color: var(--card); }
+.deck__cancel:active { transform: translate(2px,2px); box-shadow: none; }
+.deck__cancel:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm); background: var(--card); color: var(--red); }
 .deck__master {
   display: flex; align-items: center; gap: 12px; padding: 14px 20px;
   border-bottom: 2px solid var(--ink); background: var(--ink);
@@ -338,6 +371,7 @@ body {
 .dtrack__state.s-convert  { background: #f4b73d; color: var(--ink); }
 .dtrack__state.s-done     { background: var(--teal); color: var(--card); }
 .dtrack__state.s-error    { background: var(--red); color: var(--card); }
+.dtrack__state.s-cancel   { background: var(--muted); color: var(--card); }
 .dtrack .vu .seg.lit { background: var(--orange); }
 .dtrack.conv .vu .seg.lit,
 .dtrack.conv .vu .seg.lit.hot { background: #f4b73d; }

@@ -4,18 +4,26 @@ Descarga y conversión con yt-dlp + ffmpeg.
 Recibe config por parámetro (no importa config directamente) para mantener este
 módulo desacoplado y testeable. La app web le inyecta las rutas y mapas de calidad.
 """
+import logging
 import os
 from pathlib import Path
 
 import yt_dlp
+from yt_dlp.utils import DownloadCancelled
 
 import config
 from . import jobs, metadata
+
+logger = logging.getLogger(__name__)
 
 
 def _make_progress_hook(job_id: str, video_id: str):
     """Crea el hook que yt-dlp llama durante la descarga para reportar avance."""
     def hook(d):
+        # DownloadCancelled aborta yt-dlp limpiamente (no se envuelve en
+        # DownloadError): es la vía oficial para frenar desde un hook.
+        if jobs.is_cancelled(job_id):
+            raise DownloadCancelled("Cancelado por el usuario")
         status = d.get("status")
         if status == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate")
@@ -93,6 +101,7 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map, nam
     except OSError as exc:
         # Carpeta destino inválida o sin permisos: marcar todo como error y
         # cerrar el job. Si no, set_overall("done") nunca correría.
+        logger.warning("No se pudo crear la carpeta destino %s: %s", download_dir, exc)
         for item in items:
             jobs.update_item(
                 job_id, item.get("id", ""),
@@ -106,6 +115,11 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map, nam
         for item in items:
             vid = item.get("id")
             if not vid:
+                continue
+            if jobs.is_cancelled(job_id):
+                # Items que todavía no arrancaron: marcarlos y cortar el loop.
+                jobs.update_item(job_id, vid, state="cancelled", percent=0,
+                                 speed=None, eta=None)
                 continue
             url = item.get("url") or f"https://www.youtube.com/watch?v={vid}"
             hook = _make_progress_hook(job_id, vid)
@@ -133,12 +147,22 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map, nam
                     speed=None, eta=None,
                     filename=final_path.name if final_path else None,
                 )
+            except DownloadCancelled:
+                jobs.update_item(job_id, vid, state="cancelled", percent=0,
+                                 speed=None, eta=None)
             except Exception as exc:  # noqa: BLE001 — capturamos cualquier fallo del item
-                jobs.update_item(
-                    job_id, vid,
-                    state="error", percent=0, speed=None, eta=None,
-                    error=str(exc)[:200],
-                )
+                # Si la excepción vino de abortar (p. ej. yt-dlp la envolvió),
+                # reportar "cancelado" y no un error confuso.
+                if jobs.is_cancelled(job_id):
+                    jobs.update_item(job_id, vid, state="cancelled", percent=0,
+                                     speed=None, eta=None)
+                else:
+                    logger.warning("Fallo bajando %s (%s): %s", vid, url, exc)
+                    jobs.update_item(
+                        job_id, vid,
+                        state="error", percent=0, speed=None, eta=None,
+                        error=str(exc)[:200],
+                    )
     finally:
         # Pase lo que pase, cerramos el job para que la UI no quede colgada.
         jobs.set_overall(job_id, "done")

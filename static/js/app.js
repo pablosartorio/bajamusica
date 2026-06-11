@@ -51,6 +51,10 @@ const el = {
   histClose:  document.getElementById('histClose'),
   toast:      document.getElementById('toast'),
   deckReel:   document.getElementById('deckReel'),
+  deckCancel: document.getElementById('deckCancel'),
+  updBanner:  document.getElementById('updBanner'),
+  updMsg:     document.getElementById('updMsg'),
+  updClose:   document.getElementById('updClose'),
 };
 
 const CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -69,6 +73,9 @@ function fmtBytes(n) {
   return `${v.toFixed(v < 10 ? 1 : 0)} ${u[i]}`;
 }
 function fmtSpeed(bps) { const s = fmtBytes(bps); return s ? `${s}/s` : ''; }
+function fmtDate(ts) {
+  return new Date(ts * 1000).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+}
 function fmtEta(secs) {
   if (secs == null || secs < 0) return '';
   return `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2,'0')}`;
@@ -196,7 +203,9 @@ function renderTracks() {
       `</span>` +
       `<span class="track__info">` +
         `<span class="track__title">${esc(r.title)}</span>` +
-        `<span class="track__ch">${esc(r.channel)}</span>` +
+        `<span class="track__ch">${esc(r.channel)}` +
+          (r.downloaded_at ? ` <span class="track__got">ya bajado · ${fmtDate(r.downloaded_at)}</span>` : '') +
+        `</span>` +
       `</span>` +
       `<span class="track__check">${CHECK}</span>`;
 
@@ -254,10 +263,11 @@ async function browseDir() {
 // ── Descarga ─────────────────────────────────────────────────
 const STATE_PHASE = {
   downloading: 'download', converting: 'convert', tagging: 'convert',
-  done: 'done', error: 'error', queued: 'queued',
+  done: 'done', error: 'error', queued: 'queued', cancelled: 'cancel',
 };
 const PHASE_LABEL = {
-  queued: 'En cola', download: 'Bajando', convert: 'Convirtiendo', done: 'Listo', error: 'Error',
+  queued: 'En cola', download: 'Bajando', convert: 'Convirtiendo',
+  done: 'Listo', error: 'Error', cancel: 'Cancelado',
 };
 
 async function startDownload() {
@@ -299,6 +309,9 @@ function openDeck(items) {
   el.scrim.hidden = false;
   el.deck.hidden  = false;
   el.deckSub.textContent = items.length + ' temas · ' + state.format.toUpperCase() + ' · ' + state.quality;
+  el.deckCancel.hidden = false;
+  el.deckCancel.disabled = false;
+  el.deckCancel.textContent = 'CANCELAR';
 
   buildVU(el.masterVU, VU_SEGS_MASTER);
   el.masterPct.textContent = '0%';
@@ -334,6 +347,21 @@ function reopenDeck() {
   el.deck.hidden  = false;
 }
 
+async function cancelDownload() {
+  if (!state.job) return;
+  el.deckCancel.disabled = true;
+  el.deckCancel.textContent = 'CANCELANDO…';
+  try {
+    await fetch(`/cancel/${state.job.id}`, { method: 'POST' });
+    // No hace falta más: el backend marca los items y el polling
+    // va a ver el job cerrado en la próxima vuelta.
+  } catch {
+    el.deckCancel.disabled = false;
+    el.deckCancel.textContent = 'CANCELAR';
+    showToast('No se pudo cancelar la descarga.');
+  }
+}
+
 // ── Polling de progreso ───────────────────────────────────────
 function pollProgress(jobId) {
   clearInterval(state.pollTimer);
@@ -354,9 +382,10 @@ function pollProgress(jobId) {
 function renderDeck(job) {
   let effSum = 0;
 
+  const ENDED = ['done', 'error', 'cancelled'];
   job.items.forEach(item => {
     const phase = STATE_PHASE[item.state] || 'queued';
-    const pct   = item.state === 'done' || item.state === 'error' ? 100 : (item.percent || 0);
+    const pct   = ENDED.includes(item.state) ? 100 : (item.percent || 0);
     effSum += pct;
 
     const row = el.deckList.querySelector(`.dtrack[data-id="${item.id}"]`);
@@ -389,6 +418,8 @@ function renderDeck(job) {
     } else if (phase === 'error') {
       meta.textContent = '';
       if (item.error) { errEl.hidden = false; errEl.textContent = item.error; }
+    } else if (phase === 'cancel') {
+      meta.textContent = 'Cancelado por el usuario.';
     } else {
       meta.textContent = 'Esperando turno…';
     }
@@ -401,9 +432,15 @@ function renderDeck(job) {
 }
 
 function onJobDone(job) {
-  const done   = job.items.filter(i => i.state === 'done').length;
-  const errors = job.items.filter(i => i.state === 'error').length;
-  if (errors && !done) {
+  el.deckCancel.hidden = true;
+  const done      = job.items.filter(i => i.state === 'done').length;
+  const errors    = job.items.filter(i => i.state === 'error').length;
+  const cancelled = job.items.filter(i => i.state === 'cancelled').length;
+  if (cancelled && !done) {
+    showToast('Descarga cancelada.');
+  } else if (cancelled) {
+    showToast(`Cancelado · ${done} ${done === 1 ? 'archivo guardado' : 'archivos guardados'} antes de frenar.`, 'ok');
+  } else if (errors && !done) {
     showToast(errors === 1 ? 'No se pudo bajar el archivo.' : `No se pudo bajar ninguno de los ${errors}.`);
   } else if (errors) {
     showToast(`Listo: ${done} archivos · ${errors} con error.`, 'ok');
@@ -461,6 +498,20 @@ function renderHistory(entries) {
   });
 }
 
+// ── Aviso de yt-dlp desactualizado ───────────────────────────
+async function checkYtDlpVersion() {
+  try {
+    const res  = await fetch('/version_check');
+    const data = await res.json();
+    if (data.outdated) {
+      el.updMsg.textContent =
+        `El motor de descargas (yt-dlp ${data.current}) quedó viejo — última versión: ${data.latest}. ` +
+        'Si las descargas empiezan a fallar, actualizá la app.';
+      el.updBanner.hidden = false;
+    }
+  } catch { /* sin red o servidor caído: no hay nada que avisar */ }
+}
+
 // ── Init ─────────────────────────────────────────────────────
 buildVU(el.masterVU, VU_SEGS_MASTER);
 
@@ -475,7 +526,9 @@ el.selectAll.addEventListener('click', toggleSelectAll);
 el.barGo.addEventListener('click', startDownload);
 el.browseBtn.addEventListener('click', browseDir);
 el.deckClose.addEventListener('click', closeDeck);
+el.deckCancel.addEventListener('click', cancelDownload);
 el.deckTool.addEventListener('click', reopenDeck);
+el.updClose.addEventListener('click', () => { el.updBanner.hidden = true; });
 el.scrim.addEventListener('click', closeDeck);
 el.histTool.addEventListener('click', openHistory);
 el.histClose.addEventListener('click', closeHistory);
@@ -488,4 +541,5 @@ wireSeg('#segFormat',  'format');
 wireSeg('#segQuality', 'quality');
 wireSeg('#segNaming',  'naming');
 
+checkYtDlpVersion();
 el.query.focus();
