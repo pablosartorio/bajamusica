@@ -9,7 +9,11 @@ nada a internet salvo las requests a YouTube.
 
 ## Requisitos
 
-- **Python 3.10+**
+- **[uv](https://docs.astral.sh/uv/)** — maneja el entorno, las dependencias
+  y el propio Python (si hace falta, baja solo el intérprete):
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
 - **ffmpeg** — para la conversión de audio:
   ```bash
   sudo apt install ffmpeg
@@ -28,9 +32,19 @@ chmod +x run.sh      # solo la primera vez
 ./run.sh
 ```
 
-El script crea un entorno virtual, instala las dependencias, y arranca el
+El script usa **uv** para crear el entorno e instalar las dependencias la
+primera vez (las versiones quedan fijadas en `uv.lock`), y arranca el
 servidor. El navegador se abre solo en `http://127.0.0.1:5000` (si el puerto
 5000 está ocupado, la app prueba automáticamente con los siguientes).
+
+Para actualizar yt-dlp (YouTube cambia seguido y las versiones viejas dejan
+de descargar):
+
+```bash
+uv lock --upgrade-package yt-dlp
+```
+
+El próximo `./run.sh` ya instala y usa la versión nueva.
 
 ### Búsqueda normal
 
@@ -55,8 +69,8 @@ progreso. Los resultados que ya bajaste alguna vez aparecen marcados con
 ## Tests
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+uv run pytest        # el grupo dev (pytest + ruff) se instala automáticamente
+uv run ruff check .  # lint
 ```
 
 El workflow de GitHub Actions (`.github/workflows/ci.yml`) corre lint + tests
@@ -110,8 +124,9 @@ bajamusica/
 │   └── ci.yml             # CI: lint + tests + build del .exe
 ├── docs/
 │   └── como-funciona.html # explicación visual de todo el sistema
-├── requirements.txt
-├── requirements-dev.txt   # pytest + ruff
+├── pyproject.toml         # proyecto + dependencias (grupos dev y build)
+├── uv.lock                # versiones exactas de todo (lo mantiene uv)
+├── .python-version        # versión de Python que usa uv
 ├── run.sh                 # lanzador (Linux/macOS)
 ├── build.bat              # build del .exe de Windows (PyInstaller)
 ├── bajamusica.spec        # receta de empaquetado PyInstaller

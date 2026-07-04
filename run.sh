@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
-# Lanzador de Sonido. Crea el entorno virtual la primera vez, instala
-# dependencias y arranca el servidor (que abre el navegador solo).
+# Lanzador de Sonido. uv crea el entorno virtual e instala las dependencias
+# (solo la primera vez) y arranca el servidor (que abre el navegador solo).
 set -e
 cd "$(dirname "$0")"
 
-# ── Entorno virtual ─────────────────────────────────────────
-if [ ! -d ".venv" ]; then
-    echo "Creando entorno virtual (solo la primera vez)..."
-    python3 -m venv .venv
+# ── uv ──────────────────────────────────────────────────────
+if ! command -v uv >/dev/null 2>&1; then
+    echo ""
+    echo "  Falta uv (el gestor de entornos/paquetes de Python)."
+    echo "   Instalalo con:   curl -LsSf https://astral.sh/uv/install.sh | sh"
+    echo "   y volvé a correr este script."
+    echo ""
+    exit 1
 fi
-
-source .venv/bin/activate
-
-echo "Verificando dependencias..."
-pip install --quiet --upgrade pip
-pip install --quiet -r requirements.txt
 
 # ── Chequeo de ffmpeg ───────────────────────────────────────
 if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -29,4 +27,4 @@ echo ""
 echo "Iniciando Sonido en http://127.0.0.1:5000"
 echo "(Ctrl+C para detener)"
 echo ""
-python app.py
+uv run --no-dev python app.py

@@ -335,8 +335,8 @@
     <p><code>build.bat</code> genera un ejecutable autónomo con <b>PyInstaller</b> (modo <i>onedir</i>),
     bundleando Python, las dependencias y <code>ffmpeg</code>. La PC destino no necesita instalar nada.</p>
     <pre><span class="c"># build.bat hace, en orden:</span>
-1. crea un venv de build aislado
-2. instala dependencias + PyInstaller
+1. crea el entorno con uv         (baja Python si hace falta)
+2. instala dependencias + PyInstaller  (uv sync, versiones de uv.lock)
 3. baja ffmpeg.exe / ffprobe.exe  (_get_ffmpeg.py)
 4. arma el bundle             (bajamusica.spec)
    → dist\bajamusica\bajamusica.exe</pre>
