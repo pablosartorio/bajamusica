@@ -32,6 +32,7 @@ def search(query: str, max_results: int = 12) -> list[dict]:
         "no_warnings": True,
         "extract_flat": True,
         "skip_download": True,
+        "color": "never",
     }
 
     with yt_dlp.YoutubeDL(opts) as ydl:

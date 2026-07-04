@@ -12,7 +12,7 @@ import yt_dlp
 from yt_dlp.utils import DownloadCancelled
 
 import config
-from . import jobs, metadata
+from . import jobs, metadata, util
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,8 @@ def _build_opts(fmt, quality, download_dir, audio_map, video_map, hook):
         "noplaylist": True,
         "progress_hooks": [hook],
         "ignoreerrors": False,
+        # Sin colores en los mensajes: los errores de yt-dlp van a la UI.
+        "color": "never",
     }
 
     if config.FFMPEG_LOCATION:
@@ -161,7 +163,7 @@ def run_job(job_id, items, fmt, quality, download_dir, audio_map, video_map, nam
                     jobs.update_item(
                         job_id, vid,
                         state="error", percent=0, speed=None, eta=None,
-                        error=str(exc)[:200],
+                        error=util.strip_ansi(str(exc))[:200],
                     )
     finally:
         # Pase lo que pase, cerramos el job para que la UI no quede colgada.

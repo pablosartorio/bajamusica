@@ -14,6 +14,7 @@ def expand(url: str) -> tuple[str, list[dict]]:
         "extract_flat": "in_playlist",
         "quiet": True,
         "no_warnings": True,
+        "color": "never",
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
