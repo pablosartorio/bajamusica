@@ -1,0 +1,21 @@
+[project]
+name = "bajamusica"
+version = "0.1.0"
+description = "Sonido — interfaz web local para bajar temas o playlists de YouTube como MP3/MP4"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "flask>=3.0",
+    "yt-dlp>=2025.1", # mantener fresco: yt-dlp necesita updates para seguir andando con YouTube
+    "musicbrainzngs>=0.7",
+    "mutagen>=1.47",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+build = [
+    "pyinstaller>=6.0",
+]

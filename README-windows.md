@@ -3,15 +3,19 @@
 ## Requisitos
 
 - Windows 10 o superior (64-bit)
-- **Python 3.10+** instalado desde [python.org](https://www.python.org/downloads/)
-  - Al instalar, marcar la opción **"Add Python to PATH"**
+- **[uv](https://docs.astral.sh/uv/)** — se instala con PowerShell:
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+  o con winget: `winget install --id=astral-sh.uv -e`.
+  No hace falta instalar Python: uv baja solo la versión que pide el proyecto.
 - Conexión a internet durante el build (descarga ffmpeg ~90 MB, una sola vez)
 
 ---
 
 ## Cómo construir el ejecutable
 
-1. Clonar o descargar el repositorio (rama `windows-exe`)
+1. Clonar o descargar el repositorio
 2. Abrir una terminal (CMD o PowerShell) en la carpeta del proyecto
 3. Ejecutar:
 
@@ -23,11 +27,10 @@ El script hace todo solo:
 
 | Paso | Qué hace |
 |------|----------|
-| 1 | Crea un entorno virtual de build aislado (`.venv-build\`) |
-| 2 | Instala Flask, yt-dlp, mutagen, musicbrainzngs y PyInstaller |
-| 3 | Descarga `ffmpeg.exe` y `ffprobe.exe` desde los builds oficiales de yt-dlp |
-| 4 | Genera el bundle con PyInstaller |
-| 5 | Limpia archivos temporales |
+| 1 | Crea el entorno con uv (baja Python si hace falta) e instala las dependencias + PyInstaller, con las versiones fijadas en `uv.lock` |
+| 2 | Descarga `ffmpeg.exe` y `ffprobe.exe` desde los builds oficiales de yt-dlp |
+| 3 | Genera el bundle con PyInstaller |
+| 4 | Limpia archivos temporales |
 
 Al terminar, la carpeta `dist\bajamusica\` contiene el ejecutable listo para usar.
 
