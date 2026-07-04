@@ -1,4 +1,13 @@
 """Helpers reutilizables."""
+import re
+
+# Secuencias de escape ANSI (colores de terminal), p. ej. "\x1b[0;31m".
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def strip_ansi(text: str) -> str:
+    """Saca códigos de escape ANSI de un texto que va a mostrarse en la UI."""
+    return _ANSI_RE.sub("", text)
 
 
 def format_duration(seconds) -> str:
